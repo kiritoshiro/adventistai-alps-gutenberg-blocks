@@ -1,11 +1,12 @@
 const fs = require('fs').promises;
 const SFTPClient = require('ssh2-sftp-client');
 const chalk = require('chalk');
-const { Octokit } = require("@octokit/rest");
+
 const getChangelog = require('../../lib/get-changelog');
 const getPackageInfo = require('../../lib/get-package-info');
 
 const pluginRelease = async (opts) => {
+    const { Octokit } = await import("@octokit/rest");
     const { logger, env } = opts;
 
     const githubToken = env.GITHUB_TOKEN || null;

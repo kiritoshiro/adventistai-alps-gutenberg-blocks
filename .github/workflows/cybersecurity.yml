@@ -91,3 +91,14 @@ jobs:
         tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP" actionlint
 
         "$RUNNER_TEMP/actionlint" -color'
+    - name: Set up Node for build regression
+      if: ${{ !cancelled() }}
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      with:
+        node-version: '22'
+    - name: Verify block assets
+      if: ${{ !cancelled() }}
+      run: |
+        npm ci --ignore-scripts --no-audit --no-fund
+        npm run project:build-blocks
+        node tests/build-assets.cjs

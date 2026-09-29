@@ -49,3 +49,10 @@ credentials, personal data, licensing and fork restrictions before changing
 visibility. No visibility changes are part of this rollout.
 
 CodeQL additionally scans javascript-typescript in this public repository and uploads results to code scanning. It automatically skips if made private.
+
+
+## Dependency remediation — 2026-09-29
+
+Replaced obsolete cgb-scripts/Webpack 3/node-sass and unused React Native dependencies with esbuild and Dart Sass. Editor imports use WordPress-provided packages and the PHP enqueue list declares them explicitly. Existing dist filenames and ZIP layout are preserved. Runtime lodash and build/release dependencies are updated and locked. The old root-running custom Docker action is replaced by maintained hosted Node 22/PHP 8.4 setup; no release was executed.
+
+Validation: npm audit reports zero vulnerabilities; full local plugin ZIP build succeeds; bundle execution test verifies all 18 blocks register and both CSS files exist. CI repeats the bundle test. This smoke test uses WordPress API doubles; visual editing, existing saved-block round trips and CDN publishing still require staging verification before release. Dart Sass reports two existing division deprecations (not build failures).
