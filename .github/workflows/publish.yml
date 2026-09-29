@@ -5,11 +5,18 @@ on:
     tags:
       - v*
 
+permissions:
+  contents: read
+
 jobs:
   publish:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/plugin-deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
