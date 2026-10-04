@@ -9,7 +9,14 @@ permissions:
   contents: read
 
 jobs:
+  # The whole security gate must pass on the tagged commit before publishing.
+  security-gate:
+    permissions:
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/security-gate.yml
   publish:
+    needs: security-gate
     permissions:
       contents: write
     runs-on: ubuntu-latest

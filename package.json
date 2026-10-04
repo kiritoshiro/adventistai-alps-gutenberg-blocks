@@ -5,7 +5,7 @@
   "description": "Creates custom blocks in Gutenberg specific to the ALPS v3 theme.",
   "private": true,
   "scripts": {
-    "dev": "nodemon --exec 'node devtools/runner.js plugin:build --dev'",
+    "dev": "node --watch-path=src devtools/runner.js plugin:build --dev",
     "project:build-blocks": "node devtools/build-blocks.js",
     "project:set-version": "node devtools/runner.js project:set-version",
     "i18n:update-pot": "bin/i18n-update.sh",
@@ -21,15 +21,14 @@
     "@octokit/rest": "^22.0.1",
     "archiver": "^7.0.1",
     "chalk": "^4.1.2",
+    "esbuild": "^0.25.0",
     "fs-extra": "^11.3.0",
     "gettext-parser": "^8.0.0",
     "luxon": "^3.7.0",
-    "nodemon": "^3.1.0",
+    "sass": "^1.89.0",
     "ssh2-sftp-client": "^12.0.0",
     "winston": "^3.17.0",
-    "yaml": "^2.8.0",
-    "esbuild": "^0.25.0",
-    "sass": "^1.89.0"
+    "yaml": "^2.8.0"
   },
   "engines": {
     "node": ">=22"
