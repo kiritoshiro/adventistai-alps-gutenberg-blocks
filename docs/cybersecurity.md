@@ -56,3 +56,19 @@ CodeQL additionally scans javascript-typescript in this public repository and up
 Replaced obsolete cgb-scripts/Webpack 3/node-sass and unused React Native dependencies with esbuild and Dart Sass. Editor imports use WordPress-provided packages and the PHP enqueue list declares them explicitly. Existing dist filenames and ZIP layout are preserved. Runtime lodash and build/release dependencies are updated and locked. The old root-running custom Docker action is replaced by maintained hosted Node 22/PHP 8.4 setup; no release was executed.
 
 Validation: npm audit reports zero vulnerabilities; full local plugin ZIP build succeeds; bundle execution test verifies all 18 blocks register and both CSS files exist. CI repeats the bundle test. This smoke test uses WordPress API doubles; visual editing, existing saved-block round trips and CDN publishing still require staging verification before release. Dart Sass reports two existing division deprecations (not build failures).
+
+## Security gate
+
+`.github/workflows/security-gate.yml` is the only workflow that triggers the
+security scans: on pull requests and pushes to the default branch, weekly, and
+manually. The scan workflows (the baseline and, where present, CodeQL and the
+older security workflow) are reusable and run only through it. The gate also adds
+dependency audits for shipped lockfiles and, on pull requests where the repository has the dependency graph enabled, dependency review.
+Its final job, **All security checks passed**, fails unless every check succeeded;
+a cancelled or unexpectedly skipped check counts as a failure.
+
+Release workflows call the same gate on the release commit, so a package is built
+only when every check passes on exactly that commit. Branch protection on public
+repositories requires **All security checks passed** (plus the code-scanning
+**CodeQL** check where CodeQL runs). Private repositories on GitHub Free cannot
+enforce required checks, so review the gate result before merging there.
