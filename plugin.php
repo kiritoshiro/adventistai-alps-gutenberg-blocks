@@ -21,11 +21,8 @@ if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
 }
 
 require_once __DIR__ . '/updater.php';
-$updater = new \ALPS\Gutenberg\PluginUpdater(
-    ALPS_GUTENBERG_NAME,
-    ALPS_GUTENBERG_VERSION,
-    'https://cdn.adventist.org/wordpress/plugins/' . ALPS_GUTENBERG_NAME . '/' . ALPS_GUTENBERG_NAME . '.json'
-);
+// Updates come from this fork's GitHub releases, never from upstream's CDN.
+$updater = new \ALPS\Gutenberg\PluginUpdater(ALPS_GUTENBERG_NAME, ALPS_GUTENBERG_VERSION);
 $updater->init();
 
 require_once __DIR__ . '/src/init.php';
