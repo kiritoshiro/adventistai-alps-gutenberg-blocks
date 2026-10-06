@@ -3,7 +3,7 @@ name: Publish Plugin
 on:
   push:
     tags:
-      - v*
+      - 'v*.*.*'
 
 permissions:
   contents: read
@@ -15,20 +15,39 @@ jobs:
       contents: read
       security-events: write
     uses: ./.github/workflows/security-gate.yml
+
   publish:
+    name: Build and publish release
     needs: security-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
-    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/plugin-deploy
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      # build.js refuses to package unless the tag, plugin header, version
+      # constant, package files and CHANGELOG all name the same version.
+      - name: Build and package
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CDN_HOST: ${{ secrets.CDN_HOST }}
-          CDN_USER: ${{ secrets.CDN_USER }}
-          CDN_PRIVATE_KEY: ${{ secrets.CDN_PRIVATE_KEY }}
-          CDN_PRIVATE_KEY_PASS: ${{ secrets.CDN_PRIVATE_KEY_PASS }}
-          CDN_ROOT_PATH: ${{ secrets.CDN_ROOT_PATH }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          node devtools/build.js --package --tag "$RELEASE_TAG"
+          node tests/build-assets.cjs
+          cd build
+          zip -r -X "alps-gutenberg-blocks-${RELEASE_TAG}.zip" alps-gutenberg-blocks
+      # Installed copies update from this asset (updater.php). An existing
+      # release for the tag makes this fail rather than being replaced.
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: >-
+          gh release create "$RELEASE_TAG" "build/alps-gutenberg-blocks-${RELEASE_TAG}.zip"
+          --repo "$GITHUB_REPOSITORY" --title "$RELEASE_TAG" --generate-notes --verify-tag

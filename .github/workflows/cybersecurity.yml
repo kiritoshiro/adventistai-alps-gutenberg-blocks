@@ -86,12 +86,14 @@ jobs:
         "$RUNNER_TEMP/actionlint" -color'
     - name: Set up Node for build regression
       if: ${{ !cancelled() }}
-      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
-        node-version: '22'
-    - name: Verify block assets
+        node-version: '24'
+        package-manager-cache: false
+    - name: Verify block build and server render
       if: ${{ !cancelled() }}
       run: |
         npm ci --ignore-scripts --no-audit --no-fund
-        npm run project:build-blocks
+        node devtools/build.js --package
         node tests/build-assets.cjs
+        php tests/render-latest-posts.php
