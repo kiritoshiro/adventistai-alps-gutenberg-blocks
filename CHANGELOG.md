@@ -3,6 +3,30 @@ A record of the changes made to `ALPS Gutenberg Blocks`.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0]
+This fork keeps only the ALPS Latest Posts block, the one block adventistai.lt uses.
+
+### Removed
+- The other 17 blocks (accordion, blockquote, content block/expand/read-more/show-more/step, CTA, gallery, highlight blocks, highlighted paragraph, image 2-up/breakout, media block/testimonies/testimony, split content). Content made with them still shows its saved HTML on the front end, but they can no longer be edited as blocks.
+- The front-end script (`src/front.js`, which loaded jQuery on every page) and the front-end stylesheet. The ALPS theme already provides those styles.
+- The de/es/ko/ru translations and i18n tooling, Composer, the CDN/SFTP release path, `plugin.json` and the custom tags REST route (`/alps-gutenberg-blocks/latest-posts/tags`, which was public).
+- lodash, classnames and nine build/release npm packages.
+
+### Changed
+- The block is defined in `block.json` (block API version 3), and the editor is a function component using current WordPress APIs.
+- Updates come from this repository's GitHub releases, and the `Update URI` header stops WordPress.org offering a same-named plugin.
+- Releases are built by `devtools/build.js`, which checks that all version strings and the tag agree.
+- New "Button label" setting. The editor no longer resets the label to "Read More" each time it opens.
+
+### Fixed
+- Block attributes are validated: at most 100 posts (`-1` used to mean all posts), `asc`/`desc` and `date`/`title` only, numeric category and tag IDs only, sanitized custom classes.
+- Password-protected posts no longer show an excerpt.
+- Excerpts no longer show the current page's content, and no longer print double-escaped entities such as `&amp;hellip;`.
+- Image URLs and alt text are escaped for attributes, and missing image sizes fall back to `large` instead of raising PHP warnings.
+- The Yoast primary category is read for each listed post, not for the current page.
+- An empty "see all" link is no longer printed.
+- The editor no longer loads a placeholder image from a third-party site.
+
 ## [2.1.12]
 ### Fix
 - Alps latest-post block issue [#799](https://github.com/adventistchurch/alps-wordpress/issues/799)

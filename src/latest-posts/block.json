@@ -1,0 +1,80 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "alps-gutenberg-blocks/latest-posts",
+	"title": "ALPS Latest Posts",
+	"category": "widgets",
+	"icon": "megaphone",
+	"description": "Display a list of your most recent posts.",
+	"keywords": [ "latest posts" ],
+	"textdomain": "alps-gutenberg-blocks",
+	"supports": {
+		"html": false
+	},
+	"attributes": {
+		"categories": {
+			"type": "string"
+		},
+		"tags": {
+			"type": "array"
+		},
+		"postsToShow": {
+			"type": "number",
+			"default": 4
+		},
+		"hideExcerpt": {
+			"type": "boolean",
+			"default": false
+		},
+		"hidePostDate": {
+			"type": "boolean",
+			"default": false
+		},
+		"hideCategoryName": {
+			"type": "boolean",
+			"default": false
+		},
+		"hideButton": {
+			"type": "boolean",
+			"default": false
+		},
+		"hideImage": {
+			"type": "boolean",
+			"default": false
+		},
+		"alignRight": {
+			"type": "boolean",
+			"default": false
+		},
+		"postLayout": {
+			"type": "string",
+			"default": "list"
+		},
+		"order": {
+			"type": "string",
+			"default": "desc"
+		},
+		"orderBy": {
+			"type": "string",
+			"default": "date"
+		},
+		"title": {
+			"type": "string",
+			"default": ""
+		},
+		"linkLabel": {
+			"type": "string",
+			"default": ""
+		},
+		"linkUrl": {
+			"type": "string",
+			"default": ""
+		},
+		"readMoreLabel": {
+			"type": "string",
+			"default": ""
+		}
+	},
+	"editorScript": "alps-gb",
+	"editorStyle": "alps-gb-editor"
+}

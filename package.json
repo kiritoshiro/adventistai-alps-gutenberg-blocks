@@ -1,34 +1,18 @@
 {
   "name": "alps-gutenberg-blocks",
-  "version": "2.1.12",
+  "version": "3.0.0",
   "author": "Seventh-day Adventist Church",
-  "description": "Creates custom blocks in Gutenberg specific to the ALPS v3 theme.",
+  "description": "The ALPS Latest Posts block for the ALPS v3 theme.",
   "private": true,
   "scripts": {
-    "dev": "node --watch-path=src devtools/runner.js plugin:build --dev",
-    "project:build-blocks": "node devtools/build-blocks.js",
-    "project:set-version": "node devtools/runner.js project:set-version",
-    "i18n:update-pot": "bin/i18n-update.sh",
-    "i18n:create-json": "node devtools/runner.js i18n:create-json",
-    "wp:plugin:build": "node devtools/runner.js plugin:build",
-    "wp:plugin:release": "node devtools/runner.js plugin:release"
-  },
-  "dependencies": {
-    "classnames": "^2.5.1",
-    "lodash": "^4.18.0"
+    "build": "node devtools/build.js",
+    "dev": "node --watch-path=src devtools/build.js",
+    "package": "node devtools/build.js --package",
+    "test": "node tests/build-assets.cjs"
   },
   "devDependencies": {
-    "@octokit/rest": "^22.0.1",
-    "archiver": "^7.0.1",
-    "chalk": "^4.1.2",
-    "esbuild": "^0.25.0",
-    "fs-extra": "^11.3.0",
-    "gettext-parser": "^8.0.0",
-    "luxon": "^3.7.0",
-    "sass": "^1.89.0",
-    "ssh2-sftp-client": "^12.0.0",
-    "winston": "^3.17.0",
-    "yaml": "^2.8.0"
+    "esbuild": "^0.28.2",
+    "sass": "^1.105.1"
   },
   "engines": {
     "node": ">=22"

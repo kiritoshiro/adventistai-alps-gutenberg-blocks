@@ -1,72 +1,37 @@
 <?php
 /**
- * Blocks Initializer
+ * Registers the editor assets and the ALPS Latest Posts block.
  *
- * Enqueue CSS/JS of all the blocks.
- *
- * @since   1.0.0
- * @package CGB
+ * @package ALPS\Gutenberg
  */
 
-// Exit if accessed directly.
 if (! defined('ABSPATH')) {
-	exit;
+    exit;
 }
+
+require_once __DIR__ . '/latest-posts/class-latest-posts-block.php';
 
 function alps_gutenberg_blocks_init()
 {
-    $pluginRoot = WP_PLUGIN_DIR . '/' . ALPS_GUTENBERG_NAME . '/plugin.php';
+    $pluginFile = dirname(__DIR__) . '/plugin.php';
 
-    // Register block styles for both frontend + backend.
-    wp_register_style(
-        'alps-gb-style',
-        plugins_url( 'dist/blocks.style.build.css', $pluginRoot ),
-        is_admin() ? [ 'wp-editor' ] : null,
-        ALPS_GUTENBERG_VERSION
-    );
-
-    // Register block editor script for backend.
+    // Editor-only assets; the front end is styled by the ALPS theme.
     wp_register_script(
         'alps-gb',
-        plugins_url( 'dist/blocks.build.js', $pluginRoot ),
-        ['wp-api-fetch', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-data', 'wp-date', 'wp-element', 'wp-html-entities', 'wp-i18n', 'wp-primitives', 'wp-url', 'wp-keycodes', 'lodash'],
+        plugins_url('dist/blocks.build.js', $pluginFile),
+        ['wp-block-editor', 'wp-blocks', 'wp-components', 'wp-core-data', 'wp-data', 'wp-date', 'wp-element', 'wp-html-entities', 'wp-i18n'],
         ALPS_GUTENBERG_VERSION,
         true
     );
-    wp_set_script_translations(
-        'alps-gb',
-        'alps-gutenberg-blocks',
-        dirname($pluginRoot) . '/languages'
-    );
+    wp_set_script_translations('alps-gb', 'alps-gutenberg-blocks');
 
-    // Register block editor styles for backend.
     wp_register_style(
         'alps-gb-editor',
-        plugins_url( 'dist/blocks.editor.build.css', $pluginRoot ),
-        [ 'wp-edit-blocks' ],
+        plugins_url('dist/blocks.editor.build.css', $pluginFile),
+        ['wp-edit-blocks'],
         ALPS_GUTENBERG_VERSION
     );
 
-    // Register blocks
     (new \ALPS\Gutenberg\Blocks\LatestPostsBlock())->init();
 }
 add_action('init', 'alps_gutenberg_blocks_init');
-
-function alps_gutenberg_blocks_scripts() {
-    $pluginRoot = WP_PLUGIN_DIR . '/' . ALPS_GUTENBERG_NAME . '/plugin.php';
-
-    wp_enqueue_script(
-        'alps_gutenberg_front',
-        plugins_url('src/front.js', $pluginRoot),
-        ['jquery'],
-        ALPS_GUTENBERG_VERSION,
-        true
-    );
-
-    wp_set_script_translations(
-        'alps_gutenberg_front',
-        'alps-gutenberg-blocks',
-        WP_PLUGIN_DIR . '/' . ALPS_GUTENBERG_NAME . '/languages'
-    );
-}
-add_action('wp_enqueue_scripts', 'alps_gutenberg_blocks_scripts');

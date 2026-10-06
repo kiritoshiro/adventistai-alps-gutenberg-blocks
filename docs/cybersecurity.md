@@ -72,3 +72,25 @@ only when every check passes on exactly that commit. Branch protection on public
 repositories requires **All security checks passed** (plus the code-scanning
 **CodeQL** check where CodeQL runs). Private repositories on GitHub Free cannot
 enforce required checks, so review the gate result before merging there.
+
+## Attack-surface reduction — 3.0.0
+
+The plugin was cut to the one block the site uses (ALPS Latest Posts), so 17 blocks of editor code are gone. Also removed:
+- the front-end jQuery script;
+- the public `/alps-gutenberg-blocks/latest-posts/tags` REST route (the editor now uses core's taxonomy endpoints);
+- Composer;
+- the CDN/SFTP release path and its secrets;
+- the translation files;
+- 11 npm packages (lodash, classnames and nine build/release packages).
+
+The only npm packages left are the build tools esbuild and Sass. The release package holds 8 files.
+
+Block attributes are untrusted input (anyone who can edit posts sets them). The render validates them:
+- at most 100 posts;
+- allow-listed order and order-by values;
+- numeric category and tag IDs only;
+- sanitized class names.
+
+Output is escaped for its context. Password-protected posts never show an excerpt.
+
+`tests/render-latest-posts.php` covers these checks and runs in the baseline, together with the bundle test. Releases check that the tag and every version string agree before packaging.

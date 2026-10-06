@@ -1,91 +1,61 @@
-## ALPS Gutenberg Plugin
+## ALPS Gutenberg Blocks (adventistai.lt fork)
 
-This plugin is created to support the [ALPS for Wordpress](https://github.com/adventistchurch/alps-wordpress),
-to provide Gutenberg Blocks with ALPS markup.
+A stripped-down fork of [adventistchurch/alps-gutenberg-blocks](https://github.com/adventistchurch/alps-gutenberg-blocks)
+for the ALPS theme on adventistai.lt. It provides one block, **ALPS Latest Posts**
+(`alps-gutenberg-blocks/latest-posts`). That is the only block of the original 18 that appears in the site's published content.
 
----
+The block is rendered in PHP (`src/latest-posts/class-latest-posts-block.php`) with the ALPS theme's markup and
+classes, so the plugin ships no front-end CSS or JavaScript. The editor script and stylesheet are built into `dist/`.
 
-This project is based on [Create Guten Block](https://github.com/ahmadawais/create-guten-block).
+Version 3.0.0 removed the other 17 blocks. Content made with them still shows its saved HTML on the front end, but
+the editor can no longer edit it as those blocks. See `CHANGELOG.md`.
 
-## Local development
+## Layout
 
-### 👉 Init
-On first run of the plugin locally you should install required dependencies
+| Path | Purpose |
+|------|---------|
+| `plugin.php` | Plugin header, version, bootstrap |
+| `updater.php` | Updates from this repository's GitHub releases |
+| `src/init.php` | Registers the editor assets and the block |
+| `src/latest-posts/block.json` | Block definition and attributes (block API 3) |
+| `src/latest-posts/class-latest-posts-block.php` | Server-side render and attribute validation |
+| `src/latest-posts/edit.js`, `editor.scss` | Block editor UI |
+| `devtools/build.js` | Builds `dist/`, and with `--package` the release folder |
+| `tests/` | Bundle test (Node) and render test (PHP) |
+
+## Development
+
+Requires Node.js 22 or newer and PHP 7.4 or newer.
+
 ```
-npm install
-composer install
+npm ci
+npm run build     # dist/blocks.build.js and dist/blocks.editor.build.css
+npm run dev       # rebuild when src/ changes
+npm test          # bundle test
+php tests/render-latest-posts.php
 ```
 
-Composer could be downloaded from https://getcomposer.org/
+To try it locally, run `npm run package` and copy or link `build/alps-gutenberg-blocks` into `wp-content/plugins`.
 
-### Link to the WP installation
-You should link the `build/alps-gutenberg-blocks` into `wp-content/plugins` of the local WP.
+The only npm packages are the build tools esbuild and Sass. WordPress provides the editor packages at runtime.
 
-```
-ln -s path/to/plugin/ path/to/wp/wp-content/plugins/alps-gutenberg-blocks
-```
+## Releasing
 
-The `alps-gutenbers-blocks` directory should appear in `wp-content/plugins`.
-
-### 👉  `npm run dev`
-- Use to compile and run the blocks in development mode.
-- Watches for any changes and reports back any errors in your code.
-
-### 👉  `npm run project:build-blocks`
-- Use to build production code for your blocks inside `dist` folder.
-- Runs once and reports back the gzip file sizes of the produced code.
-
-### 👉  `npm run project:set-version`
-- Use to sync the current version in code with `CHANGELOG.md`
-- Sets the plugin version in `package.json`, `plugin.php`, commits the changes and creates a related git tag.
-- Push result to the GitHub to run the build and release processes.
-
-## i18n
-### 👉  `npm run i18n:update-pot`
-- Use to generate master file for internationalization.
-- Scans the project files for localizable strings and dumps them to the `languages/alps-gutenberg-blocks.pot`
-- Open `alps-gutenberg-blocks.pot` with [POEdit](https://poedit.net/) to create new and update existing locale files with string translations.
-- Translation files should be named as `languages/alps-gutenberg-blocks-{lang_LANG}.po`
-- Set language code in `en_US` format.
-
-### 👉  `npm run i18n:create-json`
-- Use to convert `.po` files to `.json`
-- Iterates over each `.po` file in `languages` and generates `.json` file with strings.
-- `.po` file names should be like `alps-gutenberg-blocks-en_US.po`
-- `.json` files are used for js scripts.
-
-## Plugin release
-### 👉  `npm run wp:plugin:build`
-- Use on Continuous Integration server to create a plugin archive for distribution
-- Builds plugin artifacts in `build` directory
-- `alps-gutenberg-blocks` directory with plugin files
-- `alps-gutenberg-blocks.zip` – plugin distribution archive
-- `alps-gutenberg-blocks.json` – plugin metadata for Wordpress updates
-
-### 👉  `npm run wp:plugin:release`
-- Use on Continuous Integration server to publish the new version
-- Creates the GitHub release with `alps-gutenberg-blocks-vX.Y.Z.zip`
-- Uploads `alps-gutenberg-blocks.zip` and `alps-gutenberg-blocks.json` to a CDN only when `CDN_HOST` is set
+1. Set the new version in `plugin.php` (the header and `ALPS_GUTENBERG_VERSION`) and in `package.json`. Run `npm install`
+   so `package-lock.json` matches, and add a `## [X.Y.Z]` section at the top of `CHANGELOG.md`.
+2. Merge to `master`, then push a `vX.Y.Z` tag on that commit.
+3. `publish.yml` runs the full security gate on the tag, builds the package (refusing if any version string disagrees with
+   the tag), and creates the GitHub release with `alps-gutenberg-blocks-vX.Y.Z.zip`.
 
 ## Updates
-Installed copies update from this repository's GitHub releases (`updater.php`); upstream releases on
-`cdn.adventist.org` are never offered. The latest non-draft, non-prerelease `vX.Y.Z` release with an
-`alps-gutenberg-blocks-vX.Y.Z.zip` asset is used. No token is needed. A fine-grained, read-only token is optional
-and only raises the GitHub API rate limit:
+
+Installed copies update from this repository's GitHub releases (`updater.php`). The `Update URI` header stops WordPress.org
+offering a same-named plugin, and upstream's `cdn.adventist.org` is never used. The latest non-draft, non-prerelease
+`vX.Y.Z` release with an `alps-gutenberg-blocks-vX.Y.Z.zip` asset is offered. No token is needed. A fine-grained, read-only
+token is optional and only raises the GitHub API rate limit:
 
 ```php
 define( 'ALPS_GUTENBERG_GITHUB_TOKEN', 'github_pat_...' );
 ```
 
-Sites running a copy that still checks the CDN must install the first release with this updater by hand once.
-
-## CI Config
-The optional CDN upload uses Environment Variables to get the config
-
-| Var | Description | Example |
-|-----|-------------|---------|
-|**CDN_HOST**| SSH host | some.server.com |
-|**CDN_USER**| SSH user | username |
-|**CDN_PRIVATE_KEY**| SSH private key content (multiline) |  |
-|**CDN_PRIVATE_KEY_PASS**| SSH private key passphrase |  |
-|**CDN_ROOT_PATH**| Path on server for artifacts uploading | /var/www |
+A site running upstream's plugin (2.x, which updates from the CDN) must install the first release of this fork by hand once.

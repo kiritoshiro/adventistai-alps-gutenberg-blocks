@@ -1,0 +1,202 @@
+// Editor-only styles for the ALPS Latest Posts block. The front end is styled
+// by the ALPS theme, so the plugin ships no front-end CSS.
+
+$c-gray--darker: #222222;
+
+.wp-block-alps-gutenberg-blocks-latest-posts {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0px 0px 15px rgba(78, 100, 142, 0.15);
+
+  .c-block__heading-link {
+    display: block;
+  }
+}
+
+.alps-latest-posts {
+  &__list {
+    li {
+      list-style: none;
+      padding-bottom: 20px;
+
+      // Image placeholder; drawn in CSS so the editor makes no third-party requests.
+      &::before {
+        float: left;
+        position: relative;
+        display: block;
+        content: "";
+        width: 150px;
+        height: 113px;
+        margin-right: 20px;
+        background: #cccccc;
+        border-radius: 4px;
+      }
+
+      &::after {
+        content: "";
+        display: block;
+        clear: both;
+      }
+    }
+
+    &.u-hide--image li::before {
+      display: none;
+    }
+
+    &.u-align--right li::before {
+      float: right;
+      margin-right: 0;
+      margin-left: 20px;
+    }
+
+    &.l-grid {
+      display: flex;
+      flex-wrap: wrap;
+      padding: 0;
+      list-style: none;
+
+      li {
+        margin: 0 20px 20px 0;
+        width: calc((100% / 3) - 20px);
+
+        &::before {
+          float: none;
+          margin-left: 0;
+          margin-right: 0;
+          margin-bottom: 10px;
+          max-width: 100%;
+          width: 100%;
+          height: auto;
+          padding-top: 75%;
+        }
+      }
+    }
+  }
+
+  &__content {
+    overflow: hidden;
+  }
+
+  &__title {
+    font-size: 20px;
+  }
+
+  &__excerpt {
+    display: block;
+    color: lightgrey;
+  }
+
+  &__meta {
+    font-size: 15px;
+
+    & > * + * {
+      margin-left: 20px;
+    }
+  }
+
+  &__category {
+    color: lightgrey;
+  }
+
+  &__button {
+    display: inline-block;
+    background-color: $c-gray--darker;
+    color: white;
+    border-radius: 50px;
+    padding: 10px 20px;
+    margin-top: 10px;
+  }
+}
+
+.descCard {
+  height: 70px;
+  background: #F3F4F6;
+  border-radius: 4px 4px 0px 0px;
+  display: flex;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 24px;
+  line-height: 33px;
+  color: #3E4E6C;
+
+  &__title-box {
+    display: inline;
+    padding-left: 26px;
+    padding-top: 4px;
+    margin-right: 8px;
+  }
+
+  &__title {
+    margin-top: -15px;
+    margin-left: 3px;
+  }
+
+  &__info-icon-box {
+    padding-top: 23px;
+    padding-bottom: 24px;
+  }
+
+  &__info-icon {
+    padding-right: 8px;
+    display: inline;
+    opacity: 0.5;
+  }
+}
+
+.contentCard {
+  padding: 28px 29px 29px 29px;
+
+  fieldset {
+    display: flex;
+    border-top: 1px solid #D2D9E4;
+    margin-bottom: 10px;
+    padding-left: 0;
+  }
+
+  legend {
+    font-weight: 600;
+    line-height: 135.7%;
+    font-size: 18px;
+    color: rgba(25, 37, 62, 0.7);
+    margin-left: 0;
+    padding: 0 15px 0 0;
+  }
+
+  .block-editor-rich-text__editable {
+    padding-left: 0;
+    font-style: normal;
+    font-weight: 300;
+    font-size: 16px;
+    line-height: 135.7%;
+    color: #19253E;
+  }
+
+  .components-text-control__input {
+    width: 100%;
+    border: 1px solid #CCD5DE;
+    box-sizing: border-box;
+    border-radius: 6px;
+    padding: 10px 0 9px 18px;
+    margin-top: 20px;
+    font-weight: 300;
+    font-size: 16px;
+    line-height: 135.7%;
+    color: rgba(25, 37, 62, 0.7);
+
+    &::placeholder {
+      color: rgba(25, 37, 62, 0.7);
+    }
+  }
+
+  &__input {
+    width: 100%;
+    margin-top: 20px;
+    margin-bottom: 5px;
+    border: none;
+    border-bottom: 1px solid #E0E1E2;
+  }
+
+  &__link {
+    width: 100%;
+  }
+}
