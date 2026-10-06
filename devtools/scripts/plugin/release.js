@@ -77,22 +77,30 @@ const pluginRelease = async (opts) => {
     });
     logger.info(`🍀 Release ${chalk.green(tag)} published on GitHub`);
 
-    // Upload to CDN
+    // Installed copies update from the GitHub release (see updater.php), so
+    // the CDN upload is optional and runs only when the CDN is configured.
+    if (!cdnHost) {
+        logger.info('CDN not configured; skipping CDN upload');
+        return;
+    }
+
     const sftp = new SFTPClient();
-    logger.info(`➡️ Check creating sftp client! Client was created!`);
     await sftp.connect({
         host: cdnHost,
         username: cdnUser,
         privateKey: cdnPrivateKey,
         passphrase: cdnPrivateKeyPass,
-        debug: console.log
-    }).catch(e => logger.info(`Unable to connect -- ${e.message}`));
+    });
 
-    await sftp.put(`${buildDir}${localFileName}`, `${cdnRootPath}/${distFileName}`);
-    logger.info(`🔼 ${chalk.yellow(distFileName)} pushed to CDN`);
+    try {
+        await sftp.put(`${buildDir}${localFileName}`, `${cdnRootPath}/${distFileName}`);
+        logger.info(`🔼 ${chalk.yellow(distFileName)} pushed to CDN`);
 
-    await sftp.put(`${buildDir}${metadataFileName}`, `${cdnRootPath}/${metadataFileName}`);
-    logger.info(`🔼 ${chalk.yellow(metadataFileName)} pushed to CDN`);
+        await sftp.put(`${buildDir}${metadataFileName}`, `${cdnRootPath}/${metadataFileName}`);
+        logger.info(`🔼 ${chalk.yellow(metadataFileName)} pushed to CDN`);
+    } finally {
+        await sftp.end();
+    }
 };
 
 module.exports = pluginRelease;

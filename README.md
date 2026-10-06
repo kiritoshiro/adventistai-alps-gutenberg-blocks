@@ -64,11 +64,23 @@ The `alps-gutenbers-blocks` directory should appear in `wp-content/plugins`.
 
 ### 👉  `npm run wp:plugin:release`
 - Use on Continuous Integration server to publish the new version
-- Uploads `alps-gutenberg-blocks.zip` and `alps-gutenberg-blocks.json` to CDN
-- Creates GitHub release for manual installation
+- Creates the GitHub release with `alps-gutenberg-blocks-vX.Y.Z.zip`
+- Uploads `alps-gutenberg-blocks.zip` and `alps-gutenberg-blocks.json` to a CDN only when `CDN_HOST` is set
+
+## Updates
+Installed copies update from this repository's GitHub releases (`updater.php`); upstream releases on
+`cdn.adventist.org` are never offered. The latest non-draft, non-prerelease `vX.Y.Z` release with an
+`alps-gutenberg-blocks-vX.Y.Z.zip` asset is used. No token is needed. A fine-grained, read-only token is optional
+and only raises the GitHub API rate limit:
+
+```php
+define( 'ALPS_GUTENBERG_GITHUB_TOKEN', 'github_pat_...' );
+```
+
+Sites running a copy that still checks the CDN must install the first release with this updater by hand once.
 
 ## CI Config
-Build script uses Environment Variables to get the config
+The optional CDN upload uses Environment Variables to get the config
 
 | Var | Description | Example |
 |-----|-------------|---------|
