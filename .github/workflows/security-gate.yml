@@ -71,10 +71,14 @@ jobs:
         with:
           fail-on-severity: moderate
 
+  wordpress:
+    name: WordPress
+    uses: ./.github/workflows/wordpress-checks.yml
+
   gate:
     name: All security checks passed
     if: ${{ always() }}
-    needs: [baseline, codeql, npm-audit, dependency-review]
+    needs: [baseline, codeql, npm-audit, dependency-review, wordpress]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

@@ -1,0 +1,19 @@
+{
+  "mounts": [
+    {
+      "host": "build/alps-gutenberg-blocks",
+      "vfs": "/wordpress/wp-content/plugins/alps-gutenberg-blocks"
+    }
+  ],
+  "plugins": [
+    "alps-gutenberg-blocks/plugin.php"
+  ],
+  "watch": [
+    "/wordpress/wp-content/plugins/alps-gutenberg-blocks/"
+  ],
+  "fixture": "<!-- wp:alps-gutenberg-blocks/latest-posts {\"title\":\"Naujienos\",\"linkLabel\":\"Visos\",\"linkUrl\":\"https://example.org/\"} /-->",
+  "expect": [
+    "c-section__blocks",
+    "Hello world!"
+  ]
+}
