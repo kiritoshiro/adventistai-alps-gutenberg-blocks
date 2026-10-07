@@ -7,7 +7,7 @@
 
 .alps-ytc {
 	--alps-ytc-accent: #d4af37;
-	--alps-ytc-accent-deep: #b8860b;
+	--alps-ytc-accent-deep: #8a6508; // 5.3:1 on white (WCAG AA)
 	--alps-ytc-accent-glow: rgba(212, 175, 55, 0.35);
 	--alps-ytc-primary: #1e3a8a;
 	--alps-ytc-primary-soft: rgba(30, 58, 138, 0.08);
@@ -15,7 +15,7 @@
 	--alps-ytc-surface: #fff;
 	--alps-ytc-card: #f5f7fb;
 	--alps-ytc-card-hover: #ebf0f8;
-	--alps-ytc-muted: #64748b;
+	--alps-ytc-muted: #556274; // 5.8:1 on the card colour
 	--alps-ytc-border: rgba(30, 58, 138, 0.12);
 
 	box-sizing: border-box;

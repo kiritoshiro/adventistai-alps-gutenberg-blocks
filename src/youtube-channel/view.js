@@ -157,22 +157,25 @@ function setUp( root ) {
 	const count = nav.querySelector( '.alps-ytc__count' );
 	let frame = 0;
 
+	// Runs in an animation frame. All layout reads come before any write, so
+	// the browser never has to recalculate layout in the middle (no forced reflow).
 	function update() {
 		frame = 0;
-		const overflow = track.scrollWidth - track.clientWidth > 4;
+		const max = track.scrollWidth - track.clientWidth;
+		// scrollLeft is negative in right-to-left layouts.
+		const left = Math.abs( track.scrollLeft );
+		const width = cards[ 0 ].parentElement.getBoundingClientRect().width || 1;
+		const gap = parseFloat( getComputedStyle( track ).columnGap ) || 0;
+		const shown = Math.max( 1, Math.round( ( track.clientWidth + gap ) / ( width + gap ) ) );
+
+		const overflow = max > 4;
 		nav.hidden = ! overflow;
 		if ( ! overflow ) {
 			return;
 		}
-		const max = track.scrollWidth - track.clientWidth;
-		// scrollLeft is negative in right-to-left layouts.
-		const left = Math.abs( track.scrollLeft );
 		prev.disabled = left <= 4;
 		next.disabled = left >= max - 4;
-		const width = cards[ 0 ].parentElement.getBoundingClientRect().width || 1;
-		const gap = parseFloat( getComputedStyle( track ).columnGap ) || 0;
 		const first = Math.round( left / ( width + gap ) );
-		const shown = Math.max( 1, Math.round( ( track.clientWidth + gap ) / ( width + gap ) ) );
 		count.textContent = `${ first + 1 }–${ Math.min( first + shown, cards.length ) } / ${ cards.length }`;
 	}
 	const schedule = () => {
@@ -187,8 +190,15 @@ function setUp( root ) {
 		}
 	} );
 	track.addEventListener( 'scroll', schedule, { passive: true } );
-	window.addEventListener( 'resize', schedule );
-	update();
+	// Measure after layout instead of during start-up (the dates above just
+	// changed the text): a ResizeObserver reports once layout is done, and
+	// again whenever the row changes size.
+	if ( window.ResizeObserver ) {
+		new ResizeObserver( schedule ).observe( track );
+	} else {
+		window.addEventListener( 'resize', schedule );
+		schedule();
+	}
 }
 
 function init() {
