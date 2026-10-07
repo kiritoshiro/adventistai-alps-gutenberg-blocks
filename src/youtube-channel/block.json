@@ -1,0 +1,44 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "alps-gutenberg-blocks/youtube-channel",
+	"title": "YouTube Channel Videos",
+	"category": "embed",
+	"icon": "video-alt3",
+	"description": "The newest videos of a YouTube channel: a player and a row of videos. Nothing loads from YouTube until a visitor presses play.",
+	"keywords": [ "youtube", "video", "channel", "kanalas", "vaizdo įrašai" ],
+	"textdomain": "alps-gutenberg-blocks",
+	"supports": {
+		"html": false,
+		"align": [ "wide", "full" ]
+	},
+	"attributes": {
+		"channel": {
+			"type": "string",
+			"default": ""
+		},
+		"title": {
+			"type": "string",
+			"default": ""
+		},
+		"count": {
+			"type": "number",
+			"default": 10
+		},
+		"excludeShorts": {
+			"type": "boolean",
+			"default": true
+		},
+		"links": {
+			"type": "object",
+			"default": {}
+		}
+	},
+	"example": {
+		"attributes": {
+			"channel": "https://www.youtube.com/@TrijuAngeluStudija"
+		}
+	},
+	"editorScript": "alps-gb",
+	"editorStyle": [ "alps-gb-editor", "alps-gb-youtube-channel" ]
+}

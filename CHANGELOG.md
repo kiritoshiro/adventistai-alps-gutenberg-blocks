@@ -3,6 +3,18 @@ A record of the changes made to `ALPS Gutenberg Blocks`.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0]
+New block: **YouTube Channel Videos** (`alps-gutenberg-blocks/youtube-channel`), replacing the front page's "Trijų Angelų Studija" code snippet.
+
+### Added
+- A player with the channel's newest video and a scrollable row of the next ones, with the channel's social links. Settings: channel (link, @handle or ID), title (defaults to the channel name), number of videos (up to 25) and "Leave out Shorts" (videos of 3 minutes or less, as before).
+- Nothing loads from YouTube until a visitor presses play. Then a youtube-nocookie.com player plays that video and continues with the following ones. A "Watch on YouTube" link stays under the player.
+- The video list is fetched on the server with the YouTube Data API and cached for an hour; stale lists are refreshed by WP-Cron in the background, and a failed refresh keeps the old list. Visitors make no API requests, and the API key never appears in the page.
+- The API key is set under Settings → Media, or with the `ALPS_YOUTUBE_API_KEY` constant. If neither is set, the WP YouTube plugin's key is used.
+- Thumbnails come in responsive sizes (up to 480 px wide in the row) instead of 1280 px images. The block's CSS (9 KB) and script (4 KB) load only on pages that use it, and it loads no web fonts.
+- Lithuanian translations of the front-end and settings texts (`languages/alps-gutenberg-blocks-lt_LT.l10n.php`, WordPress 6.5+). Video dates are shown relative ("prieš 3 dienas") in the page language.
+- Editors see a short note when the channel or API key is missing or the videos cannot be loaded; visitors see nothing.
+
 ## [3.0.0]
 This fork keeps only the ALPS Latest Posts block, the one block adventistai.lt uses.
 

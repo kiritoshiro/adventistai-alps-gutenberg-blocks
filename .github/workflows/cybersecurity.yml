@@ -97,3 +97,4 @@ jobs:
         node devtools/build.js --package
         node tests/build-assets.cjs
         php tests/render-latest-posts.php
+        php tests/render-youtube-channel.php
