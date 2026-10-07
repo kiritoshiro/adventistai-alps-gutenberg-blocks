@@ -3,6 +3,10 @@ A record of the changes made to `ALPS Gutenberg Blocks`.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.3]
+### Fixed
+- YouTube Channel Videos: no forced reflow on page load. The row's arrows and counter are measured in an animation frame (first through a ResizeObserver, after layout), with every layout read before any change; PageSpeed listed the start-up measurement as forced reflow.
+
 ## [3.1.2]
 ### Fixed
 - YouTube Channel Videos inside ALPS page content: the social icons no longer overlap (the theme's -10px list indent squeezed them), the line under the player keeps its space below (the theme's `p:last-of-type` rule removed it), and the video row keeps its padding, so the active card's ring and the scrollbar are not cramped.
