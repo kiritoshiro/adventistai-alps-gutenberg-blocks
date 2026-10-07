@@ -27,6 +27,7 @@ function current_user_can($cap) { return $GLOBALS['editor']; }
 function add_query_arg($args, $url) { return $url . '?' . implode('&', array_map(function ($k, $v) { return $k . '=' . $v; }, array_keys($args), $args)); }
 function wp_remote_get($url, $args) {
     $GLOBALS['calls'][] = $url;
+    $GLOBALS['headers'] = $args['headers'];
     $endpoint = basename(parse_url($url, PHP_URL_PATH));
     parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
     return call_user_func($GLOBALS['api'], $endpoint, $query);
@@ -48,6 +49,7 @@ function wp_enqueue_style($h) { $GLOBALS['enqueued'][] = "style:$h"; }
 function wp_enqueue_script($h) { $GLOBALS['enqueued'][] = "script:$h"; }
 function get_block_wrapper_attributes($extra) { return 'class="wp-block-alps-gutenberg-blocks-youtube-channel ' . $extra['class'] . '"'; }
 function wp_date($format, $timestamp) { return gmdate($format, $timestamp); }
+function home_url($path = '') { return 'https://example.test' . $path; }
 
 require dirname(__DIR__) . '/src/youtube-channel/class-youtube-channel-block.php';
 use ALPS\Gutenberg\Blocks\YouTubeChannelBlock as Block;
@@ -195,9 +197,16 @@ $GLOBALS['calls'] = [];
 $GLOBALS['editor'] = true;
 $notice = $block->render($attributes);
 check('editor sees the API error, without the key', false !== strpos($notice, 'HTTP 403 Requests from referer  are blocked.') && false === strpos($notice, KEY));
+check('editor sees which key was used (last 4 characters and where it is set)', false !== strpos($notice, 'key …' . substr(KEY, -4) . ' from Settings → Media'));
+check('a referrer error explains the website restriction', false !== strpos($notice, 'website restriction') && false !== strpos($notice, 'https://example.test/*'));
+check('requests carry the site address as Referer', 'https://example.test/' === $GLOBALS['headers']['Referer']);
 $GLOBALS['calls'] = [];
 $block->render($attributes);
 check('after a failure, page views do not call the API again', 0 === count($GLOBALS['calls']));
+$GLOBALS['options']['alps_gb_youtube_api_key'] = 'AIzaReplacementKey_0123456789abc';
+$block->render($attributes);
+check('a new key retries at once instead of waiting 10 minutes', count($GLOBALS['calls']) > 0);
+$GLOBALS['options']['alps_gb_youtube_api_key'] = KEY;
 $GLOBALS['editor'] = false;
 check('visitors see nothing for a failed channel', '' === $block->render($attributes));
 $GLOBALS['api'] = $working;
