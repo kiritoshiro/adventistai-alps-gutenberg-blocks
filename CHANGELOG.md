@@ -3,6 +3,14 @@ A record of the changes made to `ALPS Gutenberg Blocks`.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.1]
+### Fixed
+- YouTube Channel Videos: a key with a website (HTTP referrer) restriction for this site now works. API requests send the site's address as the referrer.
+- A failed fetch is no longer remembered for 10 minutes after the API key changes; a new key is tried at once.
+
+### Added
+- The editor note for a failed fetch names the key that was used (its last four characters and where it is set) and, for a referrer error, how to fix the key's website restriction. Settings → Media shows which key is in use.
+
 ## [3.1.0]
 New block: **YouTube Channel Videos** (`alps-gutenberg-blocks/youtube-channel`), replacing the front page's "Trijų Angelų Studija" code snippet.
 

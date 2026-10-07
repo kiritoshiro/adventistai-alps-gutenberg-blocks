@@ -59,23 +59,39 @@ class YouTubeChannelBlock
     }
 
     /**
-     * The first valid key from: the ALPS_YOUTUBE_API_KEY constant, this
-     * plugin's setting, then the WP YouTube plugin's constant and setting.
+     * The key in use and where it comes from: the ALPS_YOUTUBE_API_KEY
+     * constant, this plugin's setting, then the WP YouTube plugin's constant
+     * and setting. ['', ''] when none is valid.
+     *
+     * @return array [key, source]
      */
-    public static function apiKey()
+    public static function keySource()
     {
         $keys = [
-            defined('ALPS_YOUTUBE_API_KEY') ? constant('ALPS_YOUTUBE_API_KEY') : '',
-            get_option(self::OPTION, ''),
-            defined('WPY_YOUTUBE_API_KEY') ? constant('WPY_YOUTUBE_API_KEY') : '',
-            get_option('wpy_youtube_api_key', ''),
+            [defined('ALPS_YOUTUBE_API_KEY') ? constant('ALPS_YOUTUBE_API_KEY') : '', __('the ALPS_YOUTUBE_API_KEY constant in wp-config.php', 'alps-gutenberg-blocks')],
+            [get_option(self::OPTION, ''), __('Settings → Media', 'alps-gutenberg-blocks')],
+            [defined('WPY_YOUTUBE_API_KEY') ? constant('WPY_YOUTUBE_API_KEY') : '', __('the WPY_YOUTUBE_API_KEY constant in wp-config.php', 'alps-gutenberg-blocks')],
+            [get_option('wpy_youtube_api_key', ''), __('the WP YouTube plugin settings', 'alps-gutenberg-blocks')],
         ];
-        foreach ($keys as $key) {
-            if (is_string($key) && preg_match('/^[A-Za-z0-9_-]{20,128}$/D', $key)) {
-                return $key;
+        foreach ($keys as $entry) {
+            if (is_string($entry[0]) && preg_match('/^[A-Za-z0-9_-]{20,128}$/D', $entry[0])) {
+                return $entry;
             }
         }
-        return '';
+        return ['', ''];
+    }
+
+    public static function apiKey()
+    {
+        return self::keySource()[0];
+    }
+
+    /** "…abcd from Settings → Media", so editors can tell which key was used without seeing it. */
+    public static function keyLabel()
+    {
+        list($key, $source) = self::keySource();
+        /* translators: 1: last four characters of the API key, 2: where the key is set */
+        return '' === $key ? '' : sprintf(__('key …%1$s from %2$s', 'alps-gutenberg-blocks'), substr($key, -4), $source);
     }
 
     public function registerSetting()
@@ -106,7 +122,10 @@ class YouTubeChannelBlock
             esc_attr(self::OPTION),
             esc_attr((string) get_option(self::OPTION, ''))
         );
-        echo '<p class="description">' . esc_html__('Used by the YouTube Channel Videos block on the server only; visitors never see it. Use a key restricted to the YouTube Data API v3 without a website (referrer) restriction, because requests come from this server. If empty, the WP YouTube plugin\'s key is used.', 'alps-gutenberg-blocks') . '</p>';
+        echo '<p class="description">' . esc_html__('Used by the YouTube Channel Videos block on the server only; visitors never see it. Use a key restricted to the YouTube Data API v3. If empty, the WP YouTube plugin\'s key is used.', 'alps-gutenberg-blocks') . '</p>';
+        $label = self::keyLabel();
+        /* translators: %s: e.g. "key …abcd from Settings → Media" */
+        echo '<p class="description"><strong>' . esc_html('' !== $label ? sprintf(__('In use: %s.', 'alps-gutenberg-blocks'), $label) : __('No key is set.', 'alps-gutenberg-blocks')) . '</strong></p>';
     }
 
     /**
@@ -216,7 +235,8 @@ class YouTubeChannelBlock
     {
         $query['key'] = self::apiKey();
         $url = add_query_arg(array_map('rawurlencode', $query), 'https://www.googleapis.com/youtube/v3/' . $endpoint);
-        $response = wp_remote_get($url, ['timeout' => 8, 'headers' => ['Accept' => 'application/json']]);
+        // The site's address as Referer, so a key restricted to this website works too.
+        $response = wp_remote_get($url, ['timeout' => 8, 'headers' => ['Accept' => 'application/json', 'Referer' => home_url('/')]]);
         if (is_wp_error($response)) {
             throw new \RuntimeException(__('YouTube did not respond', 'alps-gutenberg-blocks')); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- caught in refresh(); shown only through notice(), which escapes.
         }
@@ -292,6 +312,12 @@ class YouTubeChannelBlock
         return 'alps_gb_ytc_' . md5((string) wp_json_encode([$channel, (bool) $excludeShorts]));
     }
 
+    /** Where a failed fetch is remembered. Tied to the key, so a new key retries at once. */
+    private static function errorKey($key)
+    {
+        return $key . '_error_' . substr(md5(self::apiKey()), 0, 8);
+    }
+
     /**
      * Cached data for a channel. A stale list is returned at once and refreshed
      * by WP-Cron; only a channel with no list yet is fetched during the render.
@@ -309,7 +335,7 @@ class YouTubeChannelBlock
             }
             return $cached;
         }
-        $error = get_transient($key . '_error');
+        $error = get_transient(self::errorKey($key));
         if (is_string($error) && '' !== $error) {
             return ['error' => $error];
         }
@@ -337,14 +363,14 @@ class YouTubeChannelBlock
             $data = self::fetch($channel, (bool) $excludeShorts) + ['time' => time()];
         } catch (\RuntimeException $e) {
             if (! is_array($cached) || ! isset($cached['videos'])) {
-                set_transient($key . '_error', $e->getMessage(), self::RETRY);
+                set_transient(self::errorKey($key), $e->getMessage(), self::RETRY);
                 return ['error' => $e->getMessage()];
             }
             $data = $cached;
             $data['time'] = time() - self::FRESH + self::RETRY;
         }
         update_option($key, $data, false);
-        delete_transient($key . '_error');
+        delete_transient(self::errorKey($key));
         return $data;
     }
 
@@ -428,8 +454,13 @@ class YouTubeChannelBlock
         $data = $this->data($channel, $excludeShorts);
         if (empty($data['videos'])) {
             $reason = ! empty($data['error']) ? $data['error'] : __('no videos found', 'alps-gutenberg-blocks');
-            /* translators: %s: reason, such as "HTTP 403 API key not valid." */
-            return self::notice(sprintf(__('YouTube channel: the videos could not be loaded (%s).', 'alps-gutenberg-blocks'), $reason));
+            /* translators: 1: reason, such as "HTTP 403 API key not valid.", 2: e.g. "key …abcd from Settings → Media" */
+            $message = sprintf(__('YouTube channel: the videos could not be loaded (%1$s; %2$s).', 'alps-gutenberg-blocks'), $reason, self::keyLabel());
+            if (false !== stripos($reason, 'referer')) {
+                /* translators: %s: this site's address */
+                $message .= ' ' . sprintf(__('This key has a website restriction in Google Cloud. Set "Application restrictions" to None, or add %s to its websites.', 'alps-gutenberg-blocks'), home_url('/*'));
+            }
+            return self::notice($message);
         }
 
         $count = isset($attributes['count']) && is_numeric($attributes['count']) ? (int) $attributes['count'] : 10;
