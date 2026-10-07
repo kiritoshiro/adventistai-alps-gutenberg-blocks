@@ -48,8 +48,10 @@
 		margin: 0;
 		padding: 0;
 
+		// ALPS draws "•" bullets with `.text ul:not(…):not(…):not(…) li::before`.
 		&::before {
-			content: none;
+			content: none !important;
+			display: none !important;
 		}
 	}
 
@@ -261,18 +263,22 @@
 
 .alps-ytc .alps-ytc__label {
 	display: flex;
-	flex: 1;
+	flex: 1 1 auto;
 	align-items: center;
 	gap: 10px;
+	min-width: 0;
 	margin: 0;
+	overflow: hidden;
 	color: var(--alps-ytc-muted);
+	white-space: nowrap;
 	font-size: 0.7rem;
 	letter-spacing: 0.12em;
 	text-transform: uppercase;
 
 	&::after {
 		content: '';
-		width: 60px;
+		flex: 0 1 60px;
+		min-width: 0;
 		height: 1px;
 		background: var(--alps-ytc-border);
 	}
@@ -340,8 +346,9 @@
 	display: flex;
 	gap: 1rem;
 	overflow-x: auto;
-	padding: 4px 4px 12px;
-	margin: -4px -4px 0;
+	overflow-y: hidden;
+	padding: 8px 4px 12px;
+	margin: -8px -4px 0;
 	scroll-behavior: smooth;
 	scroll-snap-type: x mandatory;
 	scrollbar-color: var(--alps-ytc-accent) var(--alps-ytc-card);
@@ -358,6 +365,8 @@
 .alps-ytc.alps-ytc .alps-ytc__card {
 	display: flex;
 	flex-direction: column;
+	align-items: stretch; // the theme centres button content
+	text-align: start;
 	width: 100%;
 	height: 100%;
 	overflow: hidden;
@@ -490,9 +499,9 @@
 		}
 	}
 
+	// The arrows are enough on a phone; the label keeps the room.
 	.alps-ytc__count {
-		min-width: 60px;
-		font-size: 0.65rem;
+		display: none;
 	}
 
 	.alps-ytc__play--big svg {

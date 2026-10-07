@@ -124,7 +124,6 @@ function setUp( root ) {
 		frame.src = playerUrl( id, ids.length ? ids : [ id ] );
 		frame.title = root.dataset.iframeTitle || 'YouTube';
 		frame.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
-		frame.allowFullscreen = true;
 		// Without a referrer YouTube refuses to play (error 153).
 		frame.referrerPolicy = 'strict-origin-when-cross-origin';
 		player.replaceChildren( frame );
