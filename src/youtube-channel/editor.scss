@@ -1,0 +1,17 @@
+// YouTube Channel Videos, editor only. The preview uses the front-end style.
+.alps-ytc-placeholder__form {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	width: 100%;
+
+	.components-placeholder__input {
+		flex: 1 1 18rem;
+		min-width: 0;
+	}
+}
+
+.alps-ytc-placeholder__error {
+	margin: 8px 0 0;
+	color: #cc1818;
+}

@@ -15,7 +15,7 @@ const slug = 'alps-gutenberg-blocks';
 const globals = {
   'block-editor': 'blockEditor', blocks: 'blocks', components: 'components',
   data: 'data', date: 'date', element: 'element', 'html-entities': 'htmlEntities',
-  i18n: 'i18n',
+  i18n: 'i18n', 'server-side-render': 'serverSideRender',
 };
 // Everything else in the repository (tooling, tests, .github) stays out of the package.
 const packageFiles = [
@@ -25,14 +25,20 @@ const packageFiles = [
   'src/init.php',
   'src/latest-posts/class-latest-posts-block.php',
   'src/latest-posts/block.json',
+  'src/youtube-channel/class-youtube-channel-block.php',
+  'src/youtube-channel/block.json',
+  'languages/alps-gutenberg-blocks-lt_LT.l10n.php',
   'dist/blocks.build.js',
   'dist/blocks.editor.build.css',
+  'dist/youtube-channel.js',
+  'dist/youtube-channel.css',
 ];
+const editorStyles = ['src/latest-posts/editor.scss', 'src/youtube-channel/editor.scss'];
 
 async function buildAssets() {
   fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
   await esbuild.build({
-    absWorkingDir: root, entryPoints: ['src/latest-posts/index.js'], bundle: true,
+    absWorkingDir: root, entryPoints: ['src/index.js'], bundle: true,
     outfile: 'dist/blocks.build.js', format: 'iife', minify: true,
     target: ['es2020'], loader: { '.js': 'jsx' },
     jsxFactory: 'wp.element.createElement', jsxFragment: 'wp.element.Fragment',
@@ -49,8 +55,18 @@ async function buildAssets() {
       build.onLoad({ filter: /\.scss$/ }, () => ({ contents: '', loader: 'js' }));
     }}],
   });
-  const css = sass.compile(path.join(root, 'src/latest-posts/editor.scss'), { style: 'compressed' }).css;
-  fs.writeFileSync(path.join(root, 'dist/blocks.editor.build.css'), css);
+  const css = editorStyles.map(file => sass.compile(path.join(root, file), { style: 'compressed' }).css);
+  fs.writeFileSync(path.join(root, 'dist/blocks.editor.build.css'), css.join('\n'));
+
+  // Front end of the YouTube Channel Videos block, loaded only where it renders.
+  await esbuild.build({
+    absWorkingDir: root, entryPoints: ['src/youtube-channel/view.js'], bundle: true,
+    outfile: 'dist/youtube-channel.js', format: 'iife', minify: true, target: ['es2020'],
+  });
+  fs.writeFileSync(
+    path.join(root, 'dist/youtube-channel.css'),
+    sass.compile(path.join(root, 'src/youtube-channel/style.scss'), { style: 'compressed' }).css
+  );
 }
 
 function read(file) {
