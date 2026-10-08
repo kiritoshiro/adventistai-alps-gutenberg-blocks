@@ -19,6 +19,9 @@ const globals = {
 };
 // Everything else in the repository (tooling, tests, .github) stays out of the package.
 const packageFiles = [
+  'src/newspaper-posts/class-newspaper-posts-block.php',
+  'src/newspaper-posts/block.json',
+  'dist/newspaper-posts.css',
   'plugin.php',
   'updater.php',
   'index.php',
@@ -61,6 +64,8 @@ async function buildAssets() {
   fs.writeFileSync(path.join(root, 'dist/book-showcase.css'), sass.compile(path.join(root, 'src/book-showcase/style.scss'), { style: 'compressed' }).css);
   const css = editorStyles.map(file => sass.compile(path.join(root, file), { style: 'compressed' }).css);
   fs.writeFileSync(path.join(root, 'dist/blocks.editor.build.css'), css.join('\n'));
+
+  fs.writeFileSync(path.join(root, 'dist/newspaper-posts.css'), sass.compile(path.join(root, 'src/newspaper-posts/style.scss'), { style: 'compressed' }).css);
 
   // Front end of the YouTube Channel Videos block, loaded only where it renders.
   await esbuild.build({

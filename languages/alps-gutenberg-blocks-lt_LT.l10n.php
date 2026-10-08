@@ -14,6 +14,7 @@ return [
 		'No books found.' => 'Knygų nerasta.',
 		'Untitled book' => 'Knyga be pavadinimo',
 		'No cover' => 'Nėra viršelio',
+		'Įrašų nerasta.' => 'Įrašų nerasta.',
 		'YouTube channel block'                                                => 'YouTube kanalo blokas',
 		'YouTube Data API key'                                                 => 'YouTube Data API raktas',
 		'That is not a YouTube Data API key. The previous key was kept.'       => 'Tai ne YouTube Data API raktas. Paliktas ankstesnis raktas.',

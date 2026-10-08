@@ -1,0 +1,13 @@
+.alps-newspaper-posts {
+  min-width: 0;
+  .custom-post-item { display: flow-root; margin: 0; padding: 1.25rem 0; border-bottom: 1px solid currentColor; overflow-wrap: break-word; }
+  .custom-post-item:first-child { padding-top: 0; }
+  .custom-post-item:last-child { border-bottom: 0; padding-bottom: 0; }
+  .post-thumbnail { float: left; width: 32%; max-width: 12rem; margin: 0 1rem .5rem 0; border: 0 !important; padding: 0; }
+  .post-thumbnail img { display: block; width: 100%; height: auto; margin: 0; }
+  .post-title { margin: 0 0 .5rem; padding: 0; font-size: 1.25rem; line-height: 1.35; }
+  .post-date { display: block; margin-bottom: .5rem; font-size: .875rem; }
+  .post-excerpt p { margin: 0; padding: 0; }
+  .clear { clear: both; }
+  a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+}

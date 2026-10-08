@@ -5,3 +5,4 @@ import './latest-posts';
 import './youtube-channel';
 
 import './book-showcase';
+import './newspaper-posts';

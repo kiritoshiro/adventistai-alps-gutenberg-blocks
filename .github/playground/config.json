@@ -11,9 +11,10 @@
   "watch": [
     "/wordpress/wp-content/plugins/alps-gutenberg-blocks/"
   ],
-  "fixture": "<!-- wp:alps-gutenberg-blocks/latest-posts {\"title\":\"Naujienos\",\"linkLabel\":\"Visos\",\"linkUrl\":\"https://example.org/\"} /-->",
+  "fixture": "<!-- wp:alps-gutenberg-blocks/latest-posts {\"title\":\"Naujienos\",\"linkLabel\":\"Visos\",\"linkUrl\":\"https://example.org/\"} /-->\n<!-- wp:alps-gutenberg-blocks/newspaper-posts /-->",
   "expect": [
     "c-section__blocks",
-    "Hello world!"
+    "Hello world!",
+    "alps-newspaper-posts"
   ]
 }

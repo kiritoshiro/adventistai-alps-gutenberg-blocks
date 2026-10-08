@@ -96,6 +96,8 @@ jobs:
         npm ci --ignore-scripts --no-audit --no-fund
         node devtools/build.js --package
         node tests/build-assets.cjs
+        php tests/render-newspaper-posts.php
         php tests/render-latest-posts.php
         php tests/render-youtube-channel.php
         php tests/render-book-showcase.php
+        php tests/updater.php

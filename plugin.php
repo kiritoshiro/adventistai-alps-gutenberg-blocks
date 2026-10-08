@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ALPS Gutenberg Blocks
  * Plugin URI: https://github.com/kiritoshiro/adventistai-alps-gutenberg-blocks
- * Description: The ALPS Latest Posts, YouTube Channel Videos and Book Showcase blocks for the ALPS v3 theme.
+ * Description: The ALPS Latest Posts, Newspaper Posts, YouTube Channel Videos and Book Showcase blocks for the ALPS v3 theme.
  * Author: Seventh-day Adventist Church
  * Author URI: https://adventist.io/themes
  * Version: 3.2.0

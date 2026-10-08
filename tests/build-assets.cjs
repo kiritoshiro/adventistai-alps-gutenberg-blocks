@@ -9,6 +9,7 @@ const root = path.resolve(__dirname, '..');
 const metadata = JSON.parse(fs.readFileSync(path.join(root, 'src/latest-posts/block.json'), 'utf8'));
 const youtube = JSON.parse(fs.readFileSync(path.join(root, 'src/youtube-channel/block.json'), 'utf8'));
 const books = JSON.parse(fs.readFileSync(path.join(root, 'src/book-showcase/block.json'), 'utf8'));
+const newspaper = JSON.parse(fs.readFileSync(path.join(root, 'src/newspaper-posts/block.json'), 'utf8'));
 const registered = new Map();
 const stub = new Proxy(function () { return stub; }, { get(target, key) { return Reflect.has(target, key) ? Reflect.get(target, key) : stub; } });
 const wp = {
@@ -21,8 +22,8 @@ wp.blockEditor = { useBlockProps: () => ({}), InspectorControls: stub, BlockCont
 const bundle = fs.readFileSync(path.join(root, 'dist/blocks.build.js'), 'utf8');
 vm.runInNewContext(bundle, { window: { wp }, wp, console }, { timeout: 5000 });
 
-assert.deepEqual([...registered.keys()], [metadata.name, youtube.name, books.name], 'All three blocks register, nothing else');
-for (const data of [metadata, youtube, books]) {
+assert.deepEqual([...registered.keys()], [metadata.name, youtube.name, books.name, newspaper.name], 'All four blocks register, nothing else');
+for (const data of [metadata, youtube, books, newspaper]) {
   const block = registered.get(data.name);
   assert.equal(typeof block.edit, 'function', `${data.name} has an editor`);
   assert.equal(block.save(), null, `${data.name} is rendered in PHP`);
@@ -85,4 +86,4 @@ assert(fs.existsSync(path.join(root, 'build/alps-gutenberg-blocks/src/book-showc
 assert(fs.existsSync(path.join(root, 'build/alps-gutenberg-blocks/src/book-showcase/class-book-showcase-block.php')), 'Book renderer is packaged');
 assert(fs.existsSync(path.join(root, 'build/alps-gutenberg-blocks/dist/book-showcase.css')), 'Book styles are packaged');
 }
-console.log(`PASS: Book Showcase plus ${metadata.name} and ${youtube.name} register (API v3); bundle ${bundle.length} B, editor CSS ${css.length} B, YouTube front end JS ${view.length} B + CSS ${style.length} B.`);
+console.log(`PASS: ${metadata.name}, ${youtube.name}, ${books.name} and ${newspaper.name} register (API v3); bundle ${bundle.length} B, editor CSS ${css.length} B, YouTube front end JS ${view.length} B + CSS ${style.length} B.`);
