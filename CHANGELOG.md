@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Added
 - Dynamic Newspaper Posts block with category slug, bounded post count, date/excerpt controls, server preview, medium thumbnails and scoped styles. Excerpts preserve the original shortcode cleanup; protected excerpts remain hidden.
 
+## [3.1.5]
+### Fixed
+- Updates: "Check again" on Dashboard → Updates now finds a new release straight away. WordPress' button only forces its own core check, so this plugin kept answering from its one-hour release cache; on `update-core.php?force-check=1` the cache is now dropped for users who can update plugins.
+
 ## [3.1.4]
 ### Changed
 - YouTube Channel Videos: the poster offers YouTube's 1280 px image only when the block is set to wide or full width. In a content column 640 px is enough (the poster shows at ~536 px on desktop and ~300 CSS px on phones), so phones with 3x screens and PageSpeed no longer download the ~250-300 KB image.
