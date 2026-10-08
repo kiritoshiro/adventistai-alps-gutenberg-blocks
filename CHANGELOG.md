@@ -3,6 +3,10 @@ A record of the changes made to `ALPS Gutenberg Blocks`.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.2]
+### Changed
+- YouTube Channel Videos: thumbnails are served from the site. YouTube serves them with a 2-hour cache lifetime (PageSpeed "Use efficient cache lifetimes": 139 KiB on adventistai.lt) from another host. After a list is fetched, WP-Cron copies its thumbnails into `uploads/alps-ytc/` (up to 640 px, and the first video's 1280 px for wide blocks), 40 per run, keeping only JPEGs from `i.ytimg.com` under names built from the validated video ID. Until a copy exists the page uses YouTube's address and asks for the copy; lists cached by earlier versions are copied on their next view. Copies unused for 90 days are removed.
+
 ## [3.2.1]
 ### Fixed
 - YouTube Channel Videos: pages with the block no longer lose their Largest Contentful Paint (PageSpeed desktop reported `NO_LCP` and no performance score for adventistai.lt). The video row snaps to its first card while the page lays out (it moves 4 px), and with `scroll-behavior: smooth` that snap was an animated scroll, which Chrome treats as a scroll that ends LCP measurement. The row no longer sets smooth scrolling in CSS; the arrows and the jump to the player still scroll smoothly from the script, and instantly for visitors who prefer reduced motion. Checked on a copy of the live homepage: no LCP before, LCP reported at 1350 and 375 px after.

@@ -31,7 +31,24 @@ class YouTubeChannelBlock
 
     const OPTION = 'alps_gb_youtube_api_key';
     const REFRESH_HOOK = 'alps_gb_youtube_channel_refresh';
+    const THUMBS_HOOK = 'alps_gb_youtube_channel_thumbs';
     const HANDLE = 'alps-gb-youtube-channel';
+
+    /**
+     * Thumbnails are copied into uploads/alps-ytc/, a few at a time by
+     * WP-Cron. YouTube serves them with a 2-hour cache lifetime, the site's
+     * uploads with a long one, and the browser needs no extra connection.
+     * Until a copy exists the page uses YouTube's address.
+     */
+    const THUMBS_DIR = 'alps-ytc';
+    const THUMBS_PER_RUN = 40;
+    const THUMBS_MAX_BYTES = 600000;
+
+    /** Copies unused for this long are removed; a page still showing one copies it again. */
+    const THUMBS_KEEP_DAYS = 90;
+
+    /** Set while rendering when a thumbnail has no local copy yet. */
+    private static $missingThumbs = false;
 
     const VIDEO_ID = '/^[A-Za-z0-9_-]{11}$/D';
 
@@ -55,6 +72,7 @@ class YouTubeChannelBlock
         wp_add_inline_script('alps-gb', 'window.alpsGbYouTube = ' . wp_json_encode(['hasKey' => '' !== self::apiKey(), 'maxVideos' => self::MAX_VIDEOS]) . ';', 'before');
 
         add_action(self::REFRESH_HOOK, [$this, 'refresh'], 10, 2);
+        add_action(self::THUMBS_HOOK, [$this, 'saveThumbs']);
         add_action('admin_init', [$this, 'registerSetting']);
     }
 
@@ -371,7 +389,122 @@ class YouTubeChannelBlock
         }
         update_option($key, $data, false);
         delete_transient(self::errorKey($key));
+        if (! wp_next_scheduled(self::THUMBS_HOOK, [$key])) {
+            wp_schedule_single_event(time(), self::THUMBS_HOOK, [$key]);
+        }
         return $data;
+    }
+
+    /**
+     * Where a YouTube thumbnail URL is copied: [path, url], or null for any
+     * other URL or when uploads are unavailable. The name comes from the
+     * validated video ID and image name only.
+     */
+    private static function localThumb($url)
+    {
+        if (! is_string($url) || ! preg_match('#^https://i\.ytimg\.com/vi/([A-Za-z0-9_-]{11})/([a-z]+)\.jpg$#D', $url, $m)) {
+            return null;
+        }
+        $uploads = wp_upload_dir(null, false);
+        if (! empty($uploads['error']) || empty($uploads['basedir']) || empty($uploads['baseurl'])) {
+            return null;
+        }
+        $name = $m[1] . '-' . $m[2] . '.jpg';
+        return [
+            trailingslashit($uploads['basedir']) . self::THUMBS_DIR . '/' . $name,
+            trailingslashit($uploads['baseurl']) . self::THUMBS_DIR . '/' . $name,
+        ];
+    }
+
+    /** The local copy's URL when it exists, else YouTube's (and the render schedules a copy). */
+    private static function thumbUrl($url)
+    {
+        $local = self::localThumb($url);
+        if ($local && is_file($local[0])) {
+            return $local[1];
+        }
+        self::$missingThumbs = true;
+        return $url;
+    }
+
+    /**
+     * WP-Cron: copies the thumbnails of one cached list (the sizes the block
+     * shows: up to 640 px, and 1280 px for the first video's player in a wide
+     * block), THUMBS_PER_RUN at a time, then removes copies unused for
+     * THUMBS_KEEP_DAYS.
+     *
+     * @param mixed $key Cache key from cacheKey().
+     */
+    public function saveThumbs($key)
+    {
+        if (! is_string($key) || ! preg_match('/^alps_gb_ytc_[a-f0-9]{32}$/D', $key)) {
+            return;
+        }
+        $data = get_option($key);
+        if (! is_array($data) || empty($data['videos']) || ! is_array($data['videos'])) {
+            return;
+        }
+        $left = self::THUMBS_PER_RUN;
+        $keep = [];
+        foreach (array_values($data['videos']) as $index => $video) {
+            $thumbs = is_array($video) && isset($video['thumbs']) && is_array($video['thumbs']) ? $video['thumbs'] : [];
+            foreach ($thumbs as $width => $url) {
+                $local = self::localThumb($url);
+                if (! $local || ((int) $width > 640 && 0 !== $index)) {
+                    continue;
+                }
+                $keep[basename($local[0])] = true;
+                if (is_file($local[0])) {
+                    continue;
+                }
+                if ($left-- <= 0) {
+                    // The rest in the next run.
+                    wp_schedule_single_event(time() + 60, self::THUMBS_HOOK, [$key]);
+                    return;
+                }
+                self::download($url, $local[0]);
+            }
+        }
+        self::prune($keep);
+    }
+
+    /** Saves a JPEG from i.ytimg.com; false when the response is not one. */
+    private static function download($url, $path)
+    {
+        $response = wp_remote_get($url, ['timeout' => 8, 'redirection' => 0, 'limit_response_size' => self::THUMBS_MAX_BYTES]);
+        if (is_wp_error($response) || 200 !== (int) wp_remote_retrieve_response_code($response)) {
+            return false;
+        }
+        $body = (string) wp_remote_retrieve_body($response);
+        $info = strlen($body) >= 100 && strlen($body) < self::THUMBS_MAX_BYTES && function_exists('getimagesizefromstring') ? @getimagesizefromstring($body) : false;
+        if (! is_array($info) || IMAGETYPE_JPEG !== $info[2] || ! wp_mkdir_p(dirname($path))) {
+            return false;
+        }
+        // Written beside the target and renamed, so a page never links a half-written file.
+        $temporary = $path . '.' . wp_generate_password(8, false) . '.tmp';
+        if (false === file_put_contents($temporary, $body)) { // Fixed directory, validated name.
+            return false;
+        }
+        if (! rename($temporary, $path)) {
+            wp_delete_file($temporary);
+            return false;
+        }
+        return true;
+    }
+
+    /** Removes copies older than THUMBS_KEEP_DAYS that the list just saved does not use. */
+    private static function prune(array $keep)
+    {
+        $uploads = wp_upload_dir(null, false);
+        if (! empty($uploads['error']) || empty($uploads['basedir'])) {
+            return;
+        }
+        $limit = time() - self::THUMBS_KEEP_DAYS * DAY_IN_SECONDS;
+        foreach (glob(trailingslashit($uploads['basedir']) . self::THUMBS_DIR . '/*.jpg') ?: [] as $file) {
+            if (! isset($keep[basename($file)]) && filemtime($file) < $limit) {
+                wp_delete_file($file);
+            }
+        }
     }
 
     /** A message for people who can edit the page; visitors get nothing. */
@@ -406,6 +539,7 @@ class YouTubeChannelBlock
             }
         }
         ksort($candidates);
+        $candidates = array_map([__CLASS__, 'thumbUrl'], $candidates);
         $srcset = [];
         foreach ($candidates as $width => $url) {
             $srcset[] = esc_url($url) . ' ' . (int) $width . 'w';
@@ -511,6 +645,13 @@ class YouTubeChannelBlock
 
         $wide = isset($attributes['align']) && in_array($attributes['align'], ['wide', 'full'], true);
         $wrapper = get_block_wrapper_attributes(['class' => 'alps-ytc']);
+        $poster = self::image($first, '(max-width: 1000px) 100vw, 920px', $wide ? 1280 : 640);
+        // Copy the thumbnails this list still takes from YouTube (lists cached before 3.2.2, new videos).
+        $key = self::cacheKey($channel, $excludeShorts);
+        if (self::$missingThumbs && ! wp_next_scheduled(self::THUMBS_HOOK, [$key])) {
+            wp_schedule_single_event(time(), self::THUMBS_HOOK, [$key]);
+        }
+        self::$missingThumbs = false;
         return sprintf(
             '<section %1$s data-alps-ytc data-iframe-title="%2$s">'
             . '<header class="alps-ytc__header">%3$s<ul class="alps-ytc__profiles" aria-label="%4$s">%5$s</ul></header>'
@@ -528,7 +669,7 @@ class YouTubeChannelBlock
             esc_attr(sprintf($playLabel, $first['title'])),
             // 640 px covers the block in a content column, also on 3x phones
             // (~300 CSS px); the 1280 px image (~250 KB) only for wide/full blocks.
-            self::image($first, '(max-width: 1000px) 100vw, 920px', $wide ? 1280 : 640),
+            $poster,
             self::icon('play'),
             esc_html($first['title']),
             esc_url('https://www.youtube.com/watch?v=' . $first['id']),
