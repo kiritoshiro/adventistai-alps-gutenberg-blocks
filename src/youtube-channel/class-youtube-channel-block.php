@@ -509,6 +509,7 @@ class YouTubeChannelBlock
             self::icon('next')
         ) : '';
 
+        $wide = isset($attributes['align']) && in_array($attributes['align'], ['wide', 'full'], true);
         $wrapper = get_block_wrapper_attributes(['class' => 'alps-ytc']);
         return sprintf(
             '<section %1$s data-alps-ytc data-iframe-title="%2$s">'
@@ -525,7 +526,9 @@ class YouTubeChannelBlock
             $profiles,
             esc_attr($first['id']),
             esc_attr(sprintf($playLabel, $first['title'])),
-            self::image($first, '(max-width: 1000px) 100vw, 920px', 1280),
+            // 640 px covers the block in a content column, also on 3x phones
+            // (~300 CSS px); the 1280 px image (~250 KB) only for wide/full blocks.
+            self::image($first, '(max-width: 1000px) 100vw, 920px', $wide ? 1280 : 640),
             self::icon('play'),
             esc_html($first['title']),
             esc_url('https://www.youtube.com/watch?v=' . $first['id']),
