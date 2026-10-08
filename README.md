@@ -68,6 +68,9 @@ youtube-nocookie.com player plays that video and continues with the following on
   uploads) and stored in a non-autoloaded option. After an hour it is refreshed by WP-Cron while the old list is still
   shown. A failed refresh keeps the old list and retries after 10 minutes; a channel with no list yet waits
   10 minutes between attempts.
+- **Thumbnails:** after a list is fetched, WP-Cron copies its thumbnails from `i.ytimg.com` into
+  `wp-content/uploads/alps-ytc/` (40 per run), so the page loads them from the site with its long cache lifetime.
+  Until a copy exists YouTube's address is used. Copies unused for 90 days are removed.
 - **Without a channel, a key or videos** editors see a short note in place of the block; visitors see nothing.
 
 ## Book Showcase

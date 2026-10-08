@@ -27,7 +27,7 @@ function current_user_can($cap) { return $GLOBALS['editor']; }
 function add_query_arg($args, $url) { return $url . '?' . implode('&', array_map(function ($k, $v) { return $k . '=' . $v; }, array_keys($args), $args)); }
 function wp_remote_get($url, $args) {
     $GLOBALS['calls'][] = $url;
-    $GLOBALS['headers'] = $args['headers'];
+    $GLOBALS['headers'] = $args['headers'] ?? null;
     $endpoint = basename(parse_url($url, PHP_URL_PATH));
     parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
     return call_user_func($GLOBALS['api'], $endpoint, $query);
@@ -50,6 +50,13 @@ function wp_enqueue_script($h) { $GLOBALS['enqueued'][] = "script:$h"; }
 function get_block_wrapper_attributes($extra) { return 'class="wp-block-alps-gutenberg-blocks-youtube-channel ' . $extra['class'] . '"'; }
 function wp_date($format, $timestamp) { return gmdate($format, $timestamp); }
 function home_url($path = '') { return 'https://example.test' . $path; }
+define('DAY_IN_SECONDS', 86400);
+define('THUMBS_BASE', sys_get_temp_dir() . '/alps-ytc-test-' . getmypid());
+function wp_upload_dir($time = null, $create = true) { return ['error' => false, 'basedir' => THUMBS_BASE, 'baseurl' => 'https://example.test/wp-content/uploads']; }
+function trailingslashit($s) { return rtrim($s, '/') . '/'; }
+function wp_mkdir_p($dir) { return is_dir($dir) || mkdir($dir, 0777, true); }
+function wp_generate_password($length, $special) { return substr(md5((string) mt_rand()), 0, $length); }
+function wp_delete_file($file) { @unlink($file); }
 
 require dirname(__DIR__) . '/src/youtube-channel/class-youtube-channel-block.php';
 use ALPS\Gutenberg\Blocks\YouTubeChannelBlock as Block;
@@ -184,9 +191,47 @@ $GLOBALS['options'][$key]['time'] = time() - 7200;
 $GLOBALS['calls'] = [];
 $html = $block->render($attributes);
 check('stale list rendered without waiting for the API', 0 === count($GLOBALS['calls']) && false !== strpos($html, 'alps-ytc__poster'));
-check('stale list schedules one refresh', 1 === count($GLOBALS['scheduled']) && 'alps_gb_youtube_channel_refresh' === $GLOBALS['scheduled'][0][0]);
+$refreshes = function () { return array_values(array_filter($GLOBALS['scheduled'], function ($event) { return 'alps_gb_youtube_channel_refresh' === $event[0]; })); };
+check('stale list schedules one refresh', 1 === count($refreshes()));
 $block->render($attributes);
-check('the refresh is not scheduled twice', 1 === count($GLOBALS['scheduled']));
+check('the refresh is not scheduled twice', 1 === count($refreshes()));
+
+// Thumbnails are copied to uploads/alps-ytc by WP-Cron and then served from there.
+check('a fetched list schedules copying its thumbnails', in_array(['alps_gb_youtube_channel_thumbs', [$key]], $GLOBALS['scheduled'], true));
+$jpeg = "\xFF\xD8\xFF\xC0\x00\x11\x08\x00\x10\x00\x10\x03\x01\x22\x00\x02\x11\x01\x03\x11\x01" . str_repeat("\x00", 120) . "\xFF\xD9";
+$apiMock = $GLOBALS['api'];
+$GLOBALS['api'] = function ($endpoint, $query) use ($jpeg) {
+    return false !== strpos(end($GLOBALS['calls']), '/v1aaaaaaaaa/') ? ['code' => 200, 'body' => '<html>not an image</html>'] : ['code' => 200, 'body' => $jpeg];
+};
+$thumbDir = THUMBS_BASE . '/alps-ytc/';
+$GLOBALS['calls'] = [];
+$block->saveThumbs($key);
+$saved = array_map('basename', glob($thumbDir . '*.jpg') ?: []);
+sort($saved);
+check('thumbnails saved under validated names', in_array('v4aaaaaaaaa-mqdefault.jpg', $saved, true) && in_array('v3aaaaaaaaa-hqdefault.jpg', $saved, true));
+check('only from i.ytimg.com', [] === array_filter($GLOBALS['calls'], function ($url) { return 0 !== strpos($url, 'https://i.ytimg.com/vi/'); }));
+check('1280 px only for the first video (the player of a wide block)', in_array('v4aaaaaaaaa-maxresdefault.jpg', $saved, true) && ! in_array('v3aaaaaaaaa-maxresdefault.jpg', $saved, true));
+check('a response that is not a JPEG is not saved', ! in_array('v1aaaaaaaaa-mqdefault.jpg', $saved, true) && ! glob($thumbDir . '*.tmp'));
+$GLOBALS['scheduled'] = [];
+$html = $block->render($attributes);
+check('saved thumbnails are served from the site', false !== strpos($html, 'https://example.test/wp-content/uploads/alps-ytc/v4aaaaaaaaa-mqdefault.jpg 320w') && false === strpos($html, 'i.ytimg.com/vi/v4aaaaaaaaa/'));
+check('a missing one keeps YouTube\'s address and is copied again later', false !== strpos($html, 'https://i.ytimg.com/vi/v1aaaaaaaaa/mqdefault.jpg') && in_array(['alps_gb_youtube_channel_thumbs', [$key]], $GLOBALS['scheduled'], true));
+$GLOBALS['calls'] = [];
+$block->saveThumbs('alps_gb_ytc_../../wp-config');
+$block->saveThumbs(['not a key']);
+check('a WP-Cron argument that is not a cache key does nothing', ! $GLOBALS['calls']);
+$GLOBALS['calls'] = [];
+$block->saveThumbs($key);
+check('only missing thumbnails are downloaded', ! array_filter($GLOBALS['calls'], function ($url) { return false === strpos($url, '/v1aaaaaaaaa/'); }));
+touch($thumbDir . 'zzoldvideoz-mqdefault.jpg', time() - 100 * 86400);
+touch($thumbDir . 'zznewvideoz-mqdefault.jpg', time() - 10 * 86400);
+touch($thumbDir . 'v4aaaaaaaaa-mqdefault.jpg', time() - 100 * 86400);
+$block->saveThumbs($key);
+check('copies unused for 90 days are removed, recent and listed ones kept', ! is_file($thumbDir . 'zzoldvideoz-mqdefault.jpg') && is_file($thumbDir . 'zznewvideoz-mqdefault.jpg') && is_file($thumbDir . 'v4aaaaaaaaa-mqdefault.jpg'));
+array_map('unlink', glob($thumbDir . '*') ?: []);
+@rmdir($thumbDir);
+@rmdir(THUMBS_BASE);
+$GLOBALS['api'] = $apiMock;
 
 // The API fails during the refresh: the old list stays.
 $working = $GLOBALS['api'];
