@@ -37,6 +37,9 @@ assert(!css.includes('$') && !/url\(/.test(css), 'Sass variables are compiled an
 // YouTube Channel Videos front end: small, self-contained, YouTube only after a click.
 const view = fs.readFileSync(path.join(root, 'dist/youtube-channel.js'), 'utf8');
 const style = fs.readFileSync(path.join(root, 'dist/youtube-channel.css'), 'utf8');
+// A smooth snap of the video row during layout counts as a scroll and ends Chrome's LCP measurement (PageSpeed NO_LCP).
+assert(!/(^|[^-])scroll-behavior\s*:\s*smooth/.test(style), 'YouTube row has no CSS smooth scrolling');
+assert(view.includes('prefers-reduced-motion'), 'YouTube arrows respect reduced motion');
 assert(view.length < 6000 && style.length < 12000, `Front-end files stay small (JS ${view.length} B, CSS ${style.length} B)`);
 assert(!/iframe_api|googleapis|fetch\(|XMLHttpRequest|jQuery/.test(view), 'The view script loads no YouTube API or data');
 assert(view.includes('youtube-nocookie.com/embed/') && view.includes('strict-origin-when-cross-origin'), 'The player is youtube-nocookie with a referrer (avoids error 153)');

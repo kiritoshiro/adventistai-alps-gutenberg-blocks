@@ -359,7 +359,10 @@
 	overflow-y: hidden;
 	padding: 8px 4px 16px;
 	margin: -8px -4px 0;
-	scroll-behavior: smooth;
+	// No `scroll-behavior: smooth` here: the row snaps to its first card while
+	// the page lays out, and a smooth snap counts as a scroll, which ends
+	// Chrome's Largest Contentful Paint measurement (PageSpeed: NO_LCP). The
+	// arrows ask for smooth scrolling themselves (view.js).
 	scroll-snap-type: x mandatory;
 	scrollbar-color: var(--alps-ytc-accent) var(--alps-ytc-card);
 	scrollbar-width: thin;
@@ -524,9 +527,5 @@
 	.alps-ytc *,
 	.alps-ytc *::after {
 		transition: none !important;
-	}
-
-	.alps-ytc .alps-ytc__track {
-		scroll-behavior: auto;
 	}
 }

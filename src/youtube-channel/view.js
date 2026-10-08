@@ -6,6 +6,8 @@
  */
 
 const mobile = () => window.matchMedia( '(max-width: 768px)' ).matches;
+/** Smooth scrolling unless the visitor asked the system for reduced motion. */
+const scrollBehavior = () => ( window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches ? 'auto' : 'smooth' );
 
 function playerUrl( id, ids ) {
 	const start = ids.indexOf( id );
@@ -142,7 +144,7 @@ function setUp( root ) {
 		if ( target.classList.contains( 'alps-ytc__card' ) ) {
 			const rect = player.getBoundingClientRect();
 			if ( rect.top < 0 || rect.bottom > window.innerHeight ) {
-				player.scrollIntoView( { behavior: 'smooth', block: 'start' } );
+				player.scrollIntoView( { behavior: scrollBehavior(), block: 'start' } );
 			}
 		}
 	} );
@@ -186,7 +188,7 @@ function setUp( root ) {
 		const arrow = event.target.closest( '.alps-ytc__arrow' );
 		if ( arrow ) {
 			const direction = getComputedStyle( track ).direction === 'rtl' ? -1 : 1;
-			track.scrollBy( { left: Number( arrow.dataset.step ) * direction * track.clientWidth * 0.9, behavior: 'smooth' } );
+			track.scrollBy( { left: Number( arrow.dataset.step ) * direction * track.clientWidth * 0.9, behavior: scrollBehavior() } );
 		}
 	} );
 	track.addEventListener( 'scroll', schedule, { passive: true } );
