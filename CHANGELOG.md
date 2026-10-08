@@ -3,6 +3,10 @@ A record of the changes made to `ALPS Gutenberg Blocks`.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.1]
+### Fixed
+- YouTube Channel Videos: pages with the block no longer lose their Largest Contentful Paint (PageSpeed desktop reported `NO_LCP` and no performance score for adventistai.lt). The video row snaps to its first card while the page lays out (it moves 4 px), and with `scroll-behavior: smooth` that snap was an animated scroll, which Chrome treats as a scroll that ends LCP measurement. The row no longer sets smooth scrolling in CSS; the arrows and the jump to the player still scroll smoothly from the script, and instantly for visitors who prefer reduced motion. Checked on a copy of the live homepage: no LCP before, LCP reported at 1350 and 375 px after.
+
 ## [3.2.0]
 ### Added
 - Dynamic Newspaper Posts block with category slug, bounded post count, date/excerpt controls, server preview, medium thumbnails and scoped styles. Excerpts preserve the original shortcode cleanup; protected excerpts remain hidden.

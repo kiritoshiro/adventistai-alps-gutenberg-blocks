@@ -5,7 +5,7 @@
  * Description: The ALPS Latest Posts, Newspaper Posts, YouTube Channel Videos and Book Showcase blocks for the ALPS v3 theme.
  * Author: Seventh-day Adventist Church
  * Author URI: https://adventist.io/themes
- * Version: 3.2.0
+ * Version: 3.2.1
  * Requires at least: 6.3
  * Requires PHP: 7.4
  * Text Domain: alps-gutenberg-blocks
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define('ALPS_GUTENBERG_VERSION', '3.2.0');
+define('ALPS_GUTENBERG_VERSION', '3.2.1');
 define('ALPS_GUTENBERG_NAME', 'alps-gutenberg-blocks');
 
 require_once __DIR__ . '/updater.php';
