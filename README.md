@@ -1,7 +1,7 @@
 ## ALPS Gutenberg Blocks (adventistai.lt fork)
 
 A stripped-down fork of [adventistchurch/alps-gutenberg-blocks](https://github.com/adventistchurch/alps-gutenberg-blocks)
-for the ALPS theme on adventistai.lt. It provides two blocks:
+for the ALPS theme on adventistai.lt. It provides three blocks:
 
 - **ALPS Latest Posts** (`alps-gutenberg-blocks/latest-posts`), the only block of the original 18 that appears in the
   site's published content. It is rendered in PHP with the ALPS theme's markup and classes, so it has no front-end CSS
@@ -9,7 +9,9 @@ for the ALPS theme on adventistai.lt. It provides two blocks:
 - **YouTube Channel Videos** (`alps-gutenberg-blocks/youtube-channel`), a channel's newest videos: a player and a
   scrollable row. See [YouTube Channel Videos](#youtube-channel-videos).
 
-Both are rendered in PHP. The editor script and stylesheet, and the YouTube block's front-end files, are built into `dist/`.
+- **Newspaper Posts** (`alps-gutenberg-blocks/newspaper-posts`), newest posts with medium thumbnails, optional dates and cleaned excerpts. See [Newspaper Posts](#newspaper-posts).
+
+All three are rendered in PHP. The editor script and stylesheet, and the YouTube block's front-end files, are built into `dist/`.
 
 Version 3.0.0 removed the other 17 blocks. Content made with them still shows its saved HTML on the front end, but
 the editor can no longer edit it as those blocks. See `CHANGELOG.md`.
@@ -25,7 +27,7 @@ the editor can no longer edit it as those blocks. See `CHANGELOG.md`.
 | `src/latest-posts/class-latest-posts-block.php` | Server-side render and attribute validation |
 | `src/latest-posts/edit.js`, `editor.scss` | Block editor UI |
 | `src/youtube-channel/` | YouTube Channel Videos: `block.json`, server render and API cache (`class-youtube-channel-block.php`), editor (`edit.js`), front end (`view.js`, `style.scss`) |
-| `src/index.js` | Editor entry that registers both blocks |
+| `src/index.js` | Editor entry that registers all blocks |
 | `languages/` | Lithuanian strings for the server-rendered texts (`.l10n.php`, WordPress 6.5+) |
 | `devtools/build.js` | Builds `dist/`, and with `--package` the release folder |
 | `tests/` | Bundle test (Node) and render test (PHP) |
@@ -39,6 +41,7 @@ npm ci
 npm run build     # dist/blocks.build.js and dist/blocks.editor.build.css
 npm run dev       # rebuild when src/ changes
 npm test          # bundle test
+php tests/render-newspaper-posts.php
 php tests/render-latest-posts.php
 php tests/render-youtube-channel.php
 ```
@@ -85,3 +88,7 @@ define( 'ALPS_GUTENBERG_GITHUB_TOKEN', 'github_pat_...' );
 ```
 
 A site running upstream's plugin (2.x, which updates from the CDN) must install the first release of this fork by hand once.
+
+## Newspaper Posts
+
+`alps-gutenberg-blocks/newspaper-posts` displays five newest published posts by default. Set a category slug (empty means all), a count from 1–50, and date/excerpt visibility in the sidebar. Featured images use WordPress medium thumbnails. Excerpts strip HTML, decode entities, remove trailing `[...]`, `[…]`, `...`, `…` or `Continued`, and append one ellipsis. Protected excerpts are hidden. The original shortcode markup classes are preserved inside a scoped wrapper; its small stylesheet is loaded only with the block. No front-end JavaScript. The existing `[posts_list]` shortcode is not registered or replaced.

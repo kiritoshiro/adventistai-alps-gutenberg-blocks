@@ -8,6 +8,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const metadata = JSON.parse(fs.readFileSync(path.join(root, 'src/latest-posts/block.json'), 'utf8'));
 const youtube = JSON.parse(fs.readFileSync(path.join(root, 'src/youtube-channel/block.json'), 'utf8'));
+const newspaper = JSON.parse(fs.readFileSync(path.join(root, 'src/newspaper-posts/block.json'), 'utf8'));
 const registered = new Map();
 const stub = new Proxy(function () { return stub; }, { get(target, key) { return Reflect.has(target, key) ? Reflect.get(target, key) : stub; } });
 const wp = {
@@ -19,8 +20,8 @@ for (const name of ['blockEditor', 'components', 'data', 'date', 'htmlEntities',
 const bundle = fs.readFileSync(path.join(root, 'dist/blocks.build.js'), 'utf8');
 vm.runInNewContext(bundle, { window: { wp }, wp, console }, { timeout: 5000 });
 
-assert.deepEqual([...registered.keys()], [metadata.name, youtube.name], 'Both blocks register, nothing else');
-for (const data of [metadata, youtube]) {
+assert.deepEqual([...registered.keys()], [metadata.name, youtube.name, newspaper.name], 'All three blocks register, nothing else');
+for (const data of [metadata, youtube, newspaper]) {
   const block = registered.get(data.name);
   assert.equal(typeof block.edit, 'function', `${data.name} has an editor`);
   assert.equal(block.save(), null, `${data.name} is rendered in PHP`);
@@ -53,4 +54,4 @@ vm.runInNewContext(view, { window: windowStub, document: documentStub, URLSearch
 listeners.click({ target: cards[1] });
 assert.equal(player.child.src, 'https://www.youtube-nocookie.com/embed/v2aaaaaaaaa?autoplay=1&playsinline=1&rel=0&playlist=v3aaaaaaaaa%2Cv1aaaaaaaaa', 'Clicking a card plays it, then the following videos');
 assert.equal(player.child.referrerPolicy, 'strict-origin-when-cross-origin');
-console.log(`PASS: ${metadata.name} and ${youtube.name} register (API v3); bundle ${bundle.length} B, editor CSS ${css.length} B, YouTube front end JS ${view.length} B + CSS ${style.length} B.`);
+console.log(`PASS: ${metadata.name} and ${youtube.name}, ${newspaper.name} register (API v3); bundle ${bundle.length} B, editor CSS ${css.length} B, YouTube front end JS ${view.length} B + CSS ${style.length} B.`);

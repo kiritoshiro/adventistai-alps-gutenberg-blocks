@@ -3,6 +3,10 @@ A record of the changes made to `ALPS Gutenberg Blocks`.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0]
+### Added
+- Dynamic Newspaper Posts block with category slug, bounded post count, date/excerpt controls, server preview, medium thumbnails and scoped styles. Excerpts preserve the original shortcode cleanup; protected excerpts remain hidden.
+
 ## [3.1.5]
 ### Fixed
 - Updates: "Check again" on Dashboard → Updates now finds a new release straight away. WordPress' button only forces its own core check, so this plugin kept answering from its one-hour release cache; on `update-core.php?force-check=1` the cache is now dropped for users who can update plugins.
