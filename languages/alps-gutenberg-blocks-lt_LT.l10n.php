@@ -11,6 +11,9 @@ return [
 	'language'     => 'lt_LT',
 	'plural-forms' => 'nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && (n%100<10 || n%100>=20) ? 1 : 2);',
 	'messages'     => [
+		'No books found.' => 'Knygų nerasta.',
+		'Untitled book' => 'Knyga be pavadinimo',
+		'No cover' => 'Nėra viršelio',
 		'Įrašų nerasta.' => 'Įrašų nerasta.',
 		'YouTube channel block'                                                => 'YouTube kanalo blokas',
 		'YouTube Data API key'                                                 => 'YouTube Data API raktas',

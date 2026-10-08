@@ -1,0 +1,31 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "alps-gutenberg-blocks/book-showcase",
+  "title": "Book Showcase",
+  "category": "widgets",
+  "icon": "book",
+  "description": "A responsive grid of book covers linking to posts in a category.",
+  "keywords": ["books", "pdf", "knygos"],
+  "textdomain": "alps-gutenberg-blocks",
+  "supports": { "html": false, "align": ["wide", "full"] },
+  "attributes": {
+    "category": { "type": "string", "default": "pdf-knygos" },
+    "showAll": { "type": "boolean", "default": true },
+    "count": { "type": "number", "default": 12 },
+    "orderBy": { "type": "string", "default": "title" },
+    "order": { "type": "string", "default": "ASC" },
+    "desktopColumns": { "type": "number", "default": 4 },
+    "tabletColumns": { "type": "number", "default": 3 },
+    "smallColumns": { "type": "number", "default": 2 },
+    "gap": { "type": "number", "default": 1.5 },
+    "maxWidth": { "type": "number", "default": 1400 },
+    "accentColor": { "type": "string", "default": "#C2A25B" },
+    "showTitles": { "type": "boolean", "default": true },
+    "titleSource": { "type": "string", "default": "caption" },
+    "animate": { "type": "boolean", "default": true },
+    "emptyMessage": { "type": "string", "default": "" }
+  },
+  "editorScript": "alps-gb",
+  "editorStyle": ["alps-gb-editor", "alps-gb-book-showcase"]
+}

@@ -9,9 +9,10 @@ for the ALPS theme on adventistai.lt. It provides three blocks:
 - **YouTube Channel Videos** (`alps-gutenberg-blocks/youtube-channel`), a channel's newest videos: a player and a
   scrollable row. See [YouTube Channel Videos](#youtube-channel-videos).
 
+- **Book Showcase** (`alps-gutenberg-blocks/book-showcase`), the PDF book cover grid with editable settings. See [Book Showcase](#book-showcase).
 - **Newspaper Posts** (`alps-gutenberg-blocks/newspaper-posts`), newest posts with medium thumbnails, optional dates and cleaned excerpts. See [Newspaper Posts](#newspaper-posts).
 
-All three are rendered in PHP. The editor script and stylesheet, and the YouTube block's front-end files, are built into `dist/`.
+All four are rendered in PHP. The editor script and stylesheet, and the YouTube block's front-end files, are built into `dist/`.
 
 Version 3.0.0 removed the other 17 blocks. Content made with them still shows its saved HTML on the front end, but
 the editor can no longer edit it as those blocks. See `CHANGELOG.md`.
@@ -44,6 +45,7 @@ npm test          # bundle test
 php tests/render-newspaper-posts.php
 php tests/render-latest-posts.php
 php tests/render-youtube-channel.php
+php tests/render-book-showcase.php
 ```
 
 To try it locally, run `npm run package` and copy or link `build/alps-gutenberg-blocks` into `wp-content/plugins`.
@@ -67,6 +69,14 @@ youtube-nocookie.com player plays that video and continues with the following on
   shown. A failed refresh keeps the old list and retries after 10 minutes; a channel with no list yet waits
   10 minutes between attempts.
 - **Without a channel, a key or videos** editors see a short note in place of the block; visitors see nothing.
+
+## Book Showcase
+
+Defaults match the live `/pdf-knygos/` snippet: all published posts in `pdf-knygos`, sorted by post title ascending; featured image captions as titles (falling back to post titles); 4/3/2 columns above 1024/768/480px and one centered 80% card on phones; 1.5em gap and 1400px maximum width.
+
+The sidebar controls category slug, show all or 1–100 books, sorting by title/date/modified, direction, three column counts, gap, maximum width, accent color, title visibility/source, animations and empty message. A blank category never lists all site posts. Covers use WordPress responsive images; missing covers use a local placeholder. Reduced motion is respected, keyboard focus stays visible, and hovered title text uses a darker accent for contrast. The stylesheet is scoped to the block and loads only on pages rendering it; there is no front-end JavaScript.
+
+To replace the old snippet after installing this plugin version, edit **PDF Knygos** (post ID 8909) in Gutenberg, remove its snippet/shortcode, insert **Book Showcase**, retain defaults, preview, and update. Do not leave both versions on the page. This code change does not modify production content.
 
 ## Releasing
 

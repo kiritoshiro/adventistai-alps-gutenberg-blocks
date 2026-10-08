@@ -13,6 +13,7 @@ require_once __DIR__ . '/newspaper-posts/class-newspaper-posts-block.php';
 
 require_once __DIR__ . '/latest-posts/class-latest-posts-block.php';
 require_once __DIR__ . '/youtube-channel/class-youtube-channel-block.php';
+require_once __DIR__ . '/book-showcase/class-book-showcase-block.php';
 
 function alps_gutenberg_blocks_init()
 {
@@ -42,5 +43,6 @@ function alps_gutenberg_blocks_init()
     (new \ALPS\Gutenberg\Blocks\NewspaperPostsBlock())->init();
     (new \ALPS\Gutenberg\Blocks\LatestPostsBlock())->init();
     (new \ALPS\Gutenberg\Blocks\YouTubeChannelBlock())->init();
+    (new \ALPS\Gutenberg\Blocks\BookShowcaseBlock())->init();
 }
 add_action('init', 'alps_gutenberg_blocks_init');

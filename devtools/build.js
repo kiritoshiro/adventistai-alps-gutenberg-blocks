@@ -35,6 +35,9 @@ const packageFiles = [
   'dist/blocks.editor.build.css',
   'dist/youtube-channel.js',
   'dist/youtube-channel.css',
+  'src/book-showcase/block.json',
+  'src/book-showcase/class-book-showcase-block.php',
+  'dist/book-showcase.css',
 ];
 const editorStyles = ['src/latest-posts/editor.scss', 'src/youtube-channel/editor.scss'];
 
@@ -58,6 +61,7 @@ async function buildAssets() {
       build.onLoad({ filter: /\.scss$/ }, () => ({ contents: '', loader: 'js' }));
     }}],
   });
+  fs.writeFileSync(path.join(root, 'dist/book-showcase.css'), sass.compile(path.join(root, 'src/book-showcase/style.scss'), { style: 'compressed' }).css);
   const css = editorStyles.map(file => sass.compile(path.join(root, file), { style: 'compressed' }).css);
   fs.writeFileSync(path.join(root, 'dist/blocks.editor.build.css'), css.join('\n'));
 
