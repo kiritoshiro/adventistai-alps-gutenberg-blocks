@@ -36,6 +36,20 @@ class PluginUpdater
         add_filter('site_transient_update_plugins', [$this, 'checkUpdate']);
         add_filter('http_request_args', [$this, 'assetRequestArgs'], 10, 2);
         add_action('upgrader_process_complete', [$this, 'afterUpdate'], 10, 2);
+        add_action('load-update-core.php', [$this, 'forceCheck'], 9);
+    }
+
+    /**
+     * "Check again" on Dashboard → Updates (force-check=1) only forces the core
+     * check; drop the cached release so the newest one is fetched on that page.
+     */
+    public function forceCheck()
+    {
+        if (empty($_GET['force-check']) || !current_user_can('update_plugins')) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only cache refresh.
+            return;
+        }
+        delete_transient($this->cacheKey);
+        $this->release = null;
     }
 
     public function pluginInfo($res, $action, $args)
