@@ -1,0 +1,42 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "alps-gutenberg-blocks/newspaper-posts",
+  "title": "Newspaper Posts",
+  "category": "widgets",
+  "icon": "media-text",
+  "description": "Recent posts with featured images, dates and excerpts in a newspaper-style list.",
+  "keywords": [
+    "posts",
+    "newspaper",
+    "įrašai"
+  ],
+  "textdomain": "alps-gutenberg-blocks",
+  "supports": {
+    "html": false
+  },
+  "attributes": {
+    "category": {
+      "type": "string",
+      "default": ""
+    },
+    "postsPerPage": {
+      "type": "number",
+      "default": 5
+    },
+    "showDate": {
+      "type": "boolean",
+      "default": true
+    },
+    "showExcerpt": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "editorScript": "alps-gb",
+  "editorStyle": [
+    "alps-gb-editor",
+    "alps-gb-newspaper-posts"
+  ],
+  "style": "alps-gb-newspaper-posts"
+}

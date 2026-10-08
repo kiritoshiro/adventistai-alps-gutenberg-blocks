@@ -3,3 +3,5 @@
  */
 import './latest-posts';
 import './youtube-channel';
+
+import './newspaper-posts';
