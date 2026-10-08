@@ -3,6 +3,11 @@ A record of the changes made to `ALPS Gutenberg Blocks`.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0]
+
+- Add the dynamic Book Showcase block, matching the PDF books grid with category, count, sorting, responsive columns, gap, width, accent, caption/title and animation settings.
+- Keep book links keyboard accessible, respect reduced motion, use responsive WordPress cover images and a local missing-cover fallback.
+
 ## [3.1.4]
 ### Changed
 - YouTube Channel Videos: the poster offers YouTube's 1280 px image only when the block is set to wide or full width. In a content column 640 px is enough (the poster shows at ~536 px on desktop and ~300 CSS px on phones), so phones with 3x screens and PageSpeed no longer download the ~250-300 KB image.
