@@ -162,9 +162,9 @@ check('video titles are stripped and escaped', false === strpos($html, '<script>
 check('the newest video is the poster and the active card', false !== strpos($html, 'class="alps-ytc__poster" data-video="v4aaaaaaaaa"') && false !== strpos($html, 'alps-ytc__card is-active" data-video="v4aaaaaaaaa"'));
 check('cards offer thumbnails up to 480 px', false !== strpos($html, 'v1aaaaaaaaa/hqdefault.jpg 480w') && false === strpos($html, 'v1aaaaaaaaa/maxresdefault.jpg'));
 check('the poster stops at 640 px in a content column', false !== strpos($html, 'v4aaaaaaaaa/sddefault.jpg') || false !== strpos($html, 'v4aaaaaaaaa/hqdefault.jpg 480w') && false === strpos($html, 'v4aaaaaaaaa/maxresdefault.jpg'));
-$enqueued = $GLOBALS['enqueued'];
+$savedEnqueued = $GLOBALS['enqueued'];
 $wideHtml = $block->render($attributes + ['align' => 'wide']);
-$GLOBALS['enqueued'] = $enqueued;
+$GLOBALS['enqueued'] = $savedEnqueued;
 check('a wide block offers the 1280 px poster', false !== strpos($wideHtml, 'v4aaaaaaaaa/maxresdefault.jpg 1280w'));
 check('images are lazy and sized', false === strpos($html, 'loading="eager"') && substr_count($html, 'loading="lazy"') === substr_count($html, '<img') && false !== strpos($html, 'width="1280" height="720"'));
 check('channel and safe profile links only', false !== strpos($html, 'href="https://www.youtube.com/@TrijuAngeluStudija"') && false !== strpos($html, 'https://www.facebook.com/3AStudija') && false === strpos($html, 'javascript:') && 2 === substr_count($html, 'alps-ytc__profile"'));
