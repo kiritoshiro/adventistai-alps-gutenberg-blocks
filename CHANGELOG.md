@@ -3,6 +3,12 @@ A record of the changes made to `ALPS Gutenberg Blocks`.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0]
+
+### Added
+- External Posts Aggregator block, adapted from Darius's GPL-2.0+ plugin v4.1.3: up to eight RSS/Atom sources, lists/cards, thumbnails, excerpts, configurable cache, and administrator diagnostics.
+- Existing [external_posts] shortcodes continue working when the standalone plugin is disabled; an active handler is preserved.
+
 ## [3.2.2]
 ### Changed
 - YouTube Channel Videos: thumbnails are served from the site. YouTube serves them with a 2-hour cache lifetime (PageSpeed "Use efficient cache lifetimes": 139 KiB on adventistai.lt) from another host. After a list is fetched, WP-Cron copies its thumbnails into `uploads/alps-ytc/` (up to 640 px, and the first video's 1280 px for wide blocks), 40 per run, keeping only JPEGs from `i.ytimg.com` under names built from the validated video ID. Until a copy exists the page uses YouTube's address and asks for the copy; lists cached by earlier versions are copied on their next view. Copies unused for 90 days are removed.

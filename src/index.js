@@ -6,3 +6,5 @@ import './youtube-channel';
 
 import './book-showcase';
 import './newspaper-posts';
+
+import './external-posts';

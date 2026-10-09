@@ -105,3 +105,11 @@ A site running upstream's plugin (2.x, which updates from the CDN) must install 
 ## Newspaper Posts
 
 `alps-gutenberg-blocks/newspaper-posts` displays five newest published posts by default. Set a category slug (empty means all), a count from 1–50, and date/excerpt visibility in the sidebar. Featured images use WordPress medium thumbnails. Excerpts strip HTML, decode entities, remove trailing `[...]`, `[…]`, `...`, `…` or `Continued`, and append one ellipsis. Protected excerpts are hidden. The original shortcode markup classes are preserved inside a scoped wrapper; its small stylesheet is loaded only with the block. No front-end JavaScript. The existing `[posts_list]` shortcode is not registered or replaced.
+
+## External Posts Aggregator
+
+Add **External Posts Aggregator** in the block inserter. Enter one RSS/Atom URL per line (or separate URLs with commas). Bare WordPress homepages use /feed/ automatically. Each source gets its own heading and newest posts; sources are not merged into one chronological list. Up to eight feeds, 1–20 posts each; list/cards, 1–100 excerpt words, 40–500px thumbnails and a 1–1440 minute cache. Errors are escaped and details are administrator-only. Cold requests allow at most five seconds per feed; cached pages reuse the result. The stylesheet loads only where the block or shortcode renders; no frontend JavaScript.
+
+Example sources: https://sveikas.info/feed/, https://tavoseimai.lt/feed/, https://dievozodis.lt/feed/, https://malonetau.lt/feed/.
+
+Migration: update this plugin, replace the Shortcode block with External Posts Aggregator, and copy the same feed URLs/settings. Existing [external_posts] shortcodes also work after deactivating the standalone External Posts Aggregator plugin. If the old plugin remains active, it owns its shortcode and still loads its global CSS. This block always uses its own renderer and scoped styles. Attribution: Darius, External Posts Aggregator 4.1.3, GPL-2.0-or-later.

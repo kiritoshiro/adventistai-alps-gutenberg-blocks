@@ -10,6 +10,7 @@ const metadata = JSON.parse(fs.readFileSync(path.join(root, 'src/latest-posts/bl
 const youtube = JSON.parse(fs.readFileSync(path.join(root, 'src/youtube-channel/block.json'), 'utf8'));
 const books = JSON.parse(fs.readFileSync(path.join(root, 'src/book-showcase/block.json'), 'utf8'));
 const newspaper = JSON.parse(fs.readFileSync(path.join(root, 'src/newspaper-posts/block.json'), 'utf8'));
+const external = JSON.parse(fs.readFileSync(path.join(root, 'src/external-posts/block.json'), 'utf8'));
 const registered = new Map();
 const stub = new Proxy(function () { return stub; }, { get(target, key) { return Reflect.has(target, key) ? Reflect.get(target, key) : stub; } });
 const wp = {
@@ -22,8 +23,8 @@ wp.blockEditor = { useBlockProps: () => ({}), InspectorControls: stub, BlockCont
 const bundle = fs.readFileSync(path.join(root, 'dist/blocks.build.js'), 'utf8');
 vm.runInNewContext(bundle, { window: { wp }, wp, console }, { timeout: 5000 });
 
-assert.deepEqual([...registered.keys()], [metadata.name, youtube.name, books.name, newspaper.name], 'All four blocks register, nothing else');
-for (const data of [metadata, youtube, books, newspaper]) {
+assert.deepEqual([...registered.keys()], [metadata.name, youtube.name, books.name, newspaper.name, external.name], 'All five blocks register, nothing else');
+for (const data of [metadata, youtube, books, newspaper, external]) {
   const block = registered.get(data.name);
   assert.equal(typeof block.edit, 'function', `${data.name} has an editor`);
   assert.equal(block.save(), null, `${data.name} is rendered in PHP`);
@@ -89,4 +90,16 @@ assert(fs.existsSync(path.join(root, 'build/alps-gutenberg-blocks/src/book-showc
 assert(fs.existsSync(path.join(root, 'build/alps-gutenberg-blocks/src/book-showcase/class-book-showcase-block.php')), 'Book renderer is packaged');
 assert(fs.existsSync(path.join(root, 'build/alps-gutenberg-blocks/dist/book-showcase.css')), 'Book styles are packaged');
 }
-console.log(`PASS: ${metadata.name}, ${youtube.name}, ${books.name} and ${newspaper.name} register (API v3); bundle ${bundle.length} B, editor CSS ${css.length} B, YouTube front end JS ${view.length} B + CSS ${style.length} B.`);
+console.log(`PASS: ${metadata.name}, ${youtube.name}, ${books.name} ${newspaper.name} and ${external.name} register (API v3); bundle ${bundle.length} B, editor CSS ${css.length} B, YouTube front end JS ${view.length} B + CSS ${style.length} B.`);
+
+const externalDefaults = Object.fromEntries(Object.entries(external.attributes).map(([k,v]) => [k,v.default]));
+const externalUpdates = [];
+const externalNodes = treeNodes(registered.get(external.name).edit({attributes: {...externalDefaults,feeds:'https://news.example/feed/',layout:'cards'},setAttributes:v=>externalUpdates.push(v)}));
+assert.equal(externalUpdates.length,0,'Opening external feeds preserves settings');
+for(const [label,key,value] of [['Feed URLs','feeds','https://other.example/feed/'],['Posts per feed','number',4],['Cache duration (minutes)','cacheMinutes',10],['Layout','layout','list'],['Excerpt length (words)','excerptLength',18],['Thumbnail size (pixels)','imageSize',100],['Administrator diagnostics','debug',true]]) {
+ externalNodes.find(n=>n.props?.label===label).props.onChange(value);
+ assert.equal(externalUpdates.at(-1)[key],value,label+' updates the correct setting');
+}
+assert(externalNodes.some(n=>n.props?.block===external.name && n.props.httpMethod==='POST'),'External feeds server preview');
+for(const p of ['src/external-posts/block.json','src/external-posts/class-external-posts-block.php','dist/external-posts.css']) assert(fs.existsSync(path.join(root,'build/alps-gutenberg-blocks',p)),'Packaged '+p);
+console.log('PASS: External Posts Aggregator editor controls and packaged assets.');
