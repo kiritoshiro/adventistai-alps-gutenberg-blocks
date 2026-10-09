@@ -1,0 +1,198 @@
+
+.alps-epa-feeds {
+    container: alps-epa / inline-size;
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)) !important;
+    gap: 1.75rem !important;
+    width: min(100%, 1320px) !important;
+    max-width: 1320px !important;
+    margin: 1.75rem auto !important;
+    padding: 0 14px !important;
+    align-items: start !important;
+    box-sizing: border-box !important;
+}
+
+.alps-epa-feeds.alps-epa-count-1 {
+    grid-template-columns: 1fr !important;
+    max-width: 760px !important;
+}
+
+.alps-epa-feed {
+    min-width: 0;
+    margin: 0 !important;
+    padding: 1.25rem 1.3rem !important;
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+    box-sizing: border-box !important;
+}
+
+.alps-epa-feed-title {
+    margin: 0 0 .9rem !important;
+    padding: 0 0 .55rem !important;
+    border-bottom: 2px solid var(--wp--preset--color--primary, #005792);
+    font-size: 1.2rem !important;
+    font-weight: 700 !important;
+    line-height: 1.3 !important;
+}
+
+.alps-epa-feed-title a,
+.alps-epa-posts a,
+.alps-epa-card a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.alps-epa-feed-title a:hover,
+.alps-epa-posts a:hover,
+.alps-epa-card a:hover {
+    text-decoration: underline;
+}
+
+.alps-epa-feeds .alps-epa-posts {
+    list-style: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    text-indent: 0 !important;
+}
+
+.alps-epa-feeds .alps-epa-posts > li {
+    display: block !important;
+    margin: 0 0 .7rem !important;
+    padding: 0 !important;
+    line-height: 1.5 !important;
+    text-indent: 0 !important;
+}
+
+/* Some themes add a hanging indent or custom marker to every list item.
+ * Reset it here so the visible text stays inside the actual link box. */
+.alps-epa-feeds .alps-epa-posts > li::before {
+    content: none !important;
+    display: none !important;
+}
+
+.alps-epa-feeds .alps-epa-posts > li::marker {
+    content: '' !important;
+}
+
+.alps-epa-feeds .alps-epa-posts > li:last-child,
+.alps-epa-card:last-child {
+    margin-bottom: 0 !important;
+}
+
+.alps-epa-feeds .alps-epa-posts > li > a {
+    display: inline-block !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    text-indent: 0 !important;
+    vertical-align: top !important;
+    overflow-wrap: anywhere;
+    box-sizing: border-box !important;
+}
+
+.alps-epa-cards {
+    list-style: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.alps-epa-card {
+    display: flex !important;
+    align-items: flex-start;
+    gap: .9rem;
+    margin: 0 0 1rem !important;
+    padding: 0 !important;
+}
+
+.alps-epa-thumb {
+    flex: 0 0 auto;
+    line-height: 0;
+}
+
+.alps-epa-thumb img {
+    display: block;
+    max-width: 100%;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+.alps-epa-text {
+    min-width: 0;
+}
+
+.alps-epa-text h3 {
+    margin: 0 0 .3rem !important;
+    font-size: 1rem !important;
+    line-height: 1.35 !important;
+    font-weight: 600 !important;
+}
+
+.alps-epa-text p {
+    margin: 0 !important;
+    font-size: .92rem !important;
+    line-height: 1.45 !important;
+    opacity: .86;
+}
+
+.alps-epa-message {
+    margin: 1rem 0;
+    padding: .8rem 1rem;
+    border-left: 4px solid currentColor;
+    background: rgba(127, 127, 127, .1);
+}
+
+.alps-epa-message ul {
+    margin: .5rem 0 0 1.25rem;
+}
+
+.alps-epa-error {
+    color: #8a1f11;
+}
+
+.alps-epa-warning {
+    color: #7a5400;
+}
+
+/* Only use 4 columns on truly wide screens. */
+@container alps-epa-block (min-width: 1400px) {
+    .alps-epa-feeds.alps-epa-count-4 {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        max-width: 1600px !important;
+    }
+}
+
+/* Keep 2x2 on normal desktop widths. */
+@media (max-width: 950px) {
+    .alps-epa-feeds {
+        grid-template-columns: 1fr !important;
+        gap: 1.1rem !important;
+        max-width: 760px !important;
+        padding: 0 10px !important;
+    }
+
+    .alps-epa-feed {
+        padding: 1rem 1.05rem !important;
+    }
+}
+
+@media (max-width: 600px) {
+    .alps-epa-thumb img {
+        width: 90px;
+        height: 90px;
+    }
+}
+
+/* Scoped ALPS resets and keyboard feedback. */
+.alps-external-posts { min-width: 0; container: alps-epa-block / inline-size; }
+.alps-epa-feeds .alps-epa-cards > li { text-indent: 0 !important; }
+.alps-epa-feeds .alps-epa-cards > li::before { content: none !important; display: none !important; }
+.alps-epa-feeds a:focus-visible { outline: 3px solid #005792; outline-offset: 4px; border-radius: 2px; }
+.alps-epa-feeds .alps-epa-thumb { width: min(var(--alps-epa-image-size, 120px), 35%); border: 0 !important; }
+.alps-epa-feeds .alps-epa-thumb img { width: 100%; height: auto; aspect-ratio: 1; }
+.alps-epa-feed-title, .alps-epa-text { overflow-wrap: break-word; word-break: normal; hyphens: none; }
+.alps-epa-feed { color: #1f2937; }
+.alps-epa-placeholder { padding: 1rem; border: 1px dashed #757575; }
+
+@container alps-epa (max-width: 600px) { .alps-epa-card { gap: .65rem; } .alps-epa-feeds .alps-epa-thumb { width: min(var(--alps-epa-image-size, 120px), 90px, 30%); } }

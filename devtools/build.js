@@ -19,6 +19,9 @@ const globals = {
 };
 // Everything else in the repository (tooling, tests, .github) stays out of the package.
 const packageFiles = [
+  'src/external-posts/block.json',
+  'src/external-posts/class-external-posts-block.php',
+  'dist/external-posts.css',
   'src/newspaper-posts/class-newspaper-posts-block.php',
   'src/newspaper-posts/block.json',
   'dist/newspaper-posts.css',
@@ -62,6 +65,7 @@ async function buildAssets() {
     }}],
   });
   fs.writeFileSync(path.join(root, 'dist/book-showcase.css'), sass.compile(path.join(root, 'src/book-showcase/style.scss'), { style: 'compressed' }).css);
+  fs.writeFileSync(path.join(root, 'dist/external-posts.css'), sass.compile(path.join(root, 'src/external-posts/style.scss'), { style: 'compressed' }).css);
   const css = editorStyles.map(file => sass.compile(path.join(root, file), { style: 'compressed' }).css);
   fs.writeFileSync(path.join(root, 'dist/blocks.editor.build.css'), css.join('\n'));
 

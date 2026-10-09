@@ -2,10 +2,10 @@
 /**
  * Plugin Name: ALPS Gutenberg Blocks
  * Plugin URI: https://github.com/kiritoshiro/adventistai-alps-gutenberg-blocks
- * Description: The ALPS Latest Posts, Newspaper Posts, YouTube Channel Videos and Book Showcase blocks for the ALPS v3 theme.
+ * Description: ALPS Latest Posts, Newspaper Posts, Book Showcase, YouTube Channel Videos and External Posts Aggregator blocks.
  * Author: Seventh-day Adventist Church
  * Author URI: https://adventist.io/themes
- * Version: 3.2.2
+ * Version: 3.3.0
  * Requires at least: 6.3
  * Requires PHP: 7.4
  * Text Domain: alps-gutenberg-blocks
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define('ALPS_GUTENBERG_VERSION', '3.2.2');
+define('ALPS_GUTENBERG_VERSION', '3.3.0');
 define('ALPS_GUTENBERG_NAME', 'alps-gutenberg-blocks');
 
 require_once __DIR__ . '/updater.php';

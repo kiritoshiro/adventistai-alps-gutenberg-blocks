@@ -11,6 +11,11 @@ return [
 	'language'     => 'lt_LT',
 	'plural-forms' => 'nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && (n%100<10 || n%100>=20) ? 1 : 2);',
 	'messages'     => [
+        'No valid feed URL was supplied.' => 'Nenurodytas tinkamas naujienų srauto URL.',
+        'The feed contains no readable items.' => 'Sraute nėra skaitomų įrašų.',
+        'External posts could not be loaded.' => 'Nepavyko įkelti išorinių įrašų.',
+        'Feed errors:' => 'Srautų klaidos:',
+        'Some feeds failed:' => 'Kai kurių srautų nepavyko įkelti:',
 		'No books found.' => 'Knygų nerasta.',
 		'Untitled book' => 'Knyga be pavadinimo',
 		'No cover' => 'Nėra viršelio',

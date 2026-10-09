@@ -1,8 +1,8 @@
 {
   "name": "alps-gutenberg-blocks",
-  "version": "3.2.2",
+  "version": "3.3.0",
   "author": "Seventh-day Adventist Church",
-  "description": "The ALPS Latest Posts, Newspaper Posts and YouTube Channel Videos blocks for the ALPS v3 theme.",
+  "description": "ALPS Latest Posts, Newspaper Posts, Book Showcase, YouTube Channel Videos and External Posts Aggregator blocks.",
   "private": true,
   "scripts": {
     "build": "node devtools/build.js",

@@ -1,0 +1,62 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "alps-gutenberg-blocks/external-posts",
+  "title": "External Posts Aggregator",
+  "category": "widgets",
+  "icon": "rss",
+  "description": "Latest posts from external RSS or Atom feeds, grouped by source.",
+  "keywords": [
+    "rss",
+    "feed",
+    "external posts"
+  ],
+  "textdomain": "alps-gutenberg-blocks",
+  "supports": {
+    "html": false,
+    "align": [
+      "wide",
+      "full"
+    ]
+  },
+  "attributes": {
+    "feeds": {
+      "type": "string",
+      "default": ""
+    },
+    "number": {
+      "type": "number",
+      "default": 5
+    },
+    "cacheMinutes": {
+      "type": "number",
+      "default": 30
+    },
+    "layout": {
+      "type": "string",
+      "enum": [
+        "list",
+        "cards"
+      ],
+      "default": "list"
+    },
+    "excerptLength": {
+      "type": "number",
+      "default": 15
+    },
+    "imageSize": {
+      "type": "number",
+      "default": 120
+    },
+    "debug": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "editorScript": "alps-gb",
+  "editorStyle": [
+    "alps-gb-editor",
+    "alps-gb-external-posts"
+  ],
+  "style": "alps-gb-external-posts"
+}
