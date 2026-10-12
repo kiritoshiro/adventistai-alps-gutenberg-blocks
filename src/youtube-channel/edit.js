@@ -45,6 +45,23 @@ export function isChannel( value ) {
 	}
 }
 
+/** True for an http(s) address, with or without https://. Mirrors YouTubeChannelBlock::website(). */
+export function isWebsite( value ) {
+	let text = String( value || '' ).trim();
+	if ( text === '' ) {
+		return false;
+	}
+	if ( ! /^[a-z][a-z0-9+.-]*:(?!\d)/i.test( text ) ) {
+		text = 'https://' + text.replace( /^\/+/, '' );
+	}
+	try {
+		const url = new URL( text );
+		return /^https?:$/.test( url.protocol ) && url.hostname !== '';
+	} catch ( error ) {
+		return false;
+	}
+}
+
 function ChannelForm( { channel, onSubmit, onCancel } ) {
 	const [ draft, setDraft ] = useState( channel || '' );
 	const [ touched, setTouched ] = useState( false );
@@ -151,10 +168,13 @@ export default function YouTubeChannelEdit( { attributes, setAttributes } ) {
 						__next40pxDefaultSize
 						type="url"
 						label={ __( 'Main website', 'alps-gutenberg-blocks' ) }
-						help={ __( 'Shown under the title as a link with its address, for example example.lt.', 'alps-gutenberg-blocks' ) }
+						help={ ! website || isWebsite( website )
+							? __( 'Shown under the title as a link with its address, for example example.lt.', 'alps-gutenberg-blocks' )
+							: __( 'Not a web address, so no link is shown.', 'alps-gutenberg-blocks' ) }
 						placeholder="https://"
 						value={ website }
-						onChange={ ( value ) => setAttributes( { website: value } ) }
+						// An emptied website also drops its hidden link text.
+						onChange={ ( value ) => setAttributes( value ? { website: value } : { website: '', websiteLabel: '' } ) }
 					/>
 					{ website && (
 						<TextControl

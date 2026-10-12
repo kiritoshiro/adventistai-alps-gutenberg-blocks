@@ -192,7 +192,7 @@ check('website shown under the title as its domain', false !== strpos($site, '<d
 $site = $block->render(['website' => 'https://example.lt', 'websiteLabel' => 'Mūsų <b>svetainė</b>'] + $attributes);
 check('custom website text is stripped and escaped', false !== strpos($site, '<span>Mūsų svetainė</span>'));
 check('unsafe or empty website addresses are left out', false === strpos($block->render(['website' => 'javascript:alert(1)'] + $attributes), 'alps-ytc__site') && false === strpos($block->render(['website' => ['bad']] + $attributes), 'alps-ytc__site') && false === strpos($block->render(['website' => 'https://'] + $attributes), 'alps-ytc__site'));
-check('an address without https:// is completed', ['https://example.lt/naujienos', 'example.lt'] === Block::website('example.lt/naujienos', '') && ['http://www.x.lt', 'x.lt'] === Block::website('http://www.x.lt', '') && [] === Block::website('mailto:a@b.lt', ''));
+check('an address without https:// is completed', ['https://example.lt/naujienos', 'example.lt'] === Block::website('example.lt/naujienos', '') && ['http://www.x.lt', 'x.lt'] === Block::website('http://www.x.lt', '') && ['https://example.lt:8080', 'example.lt'] === Block::website('example.lt:8080', '') && [] === Block::website('mailto:a@b.lt', ''));
 
 // Stale list: served at once, refreshed by WP-Cron.
 $key = 'alps_gb_ytc_' . md5(json_encode([['handle' => 'TrijuAngeluStudija'], true]));

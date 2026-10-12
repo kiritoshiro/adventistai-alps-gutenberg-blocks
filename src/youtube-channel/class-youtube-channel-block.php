@@ -196,8 +196,8 @@ class YouTubeChannelBlock
     public static function website($url, $label)
     {
         $url = is_string($url) ? trim($url) : '';
-        // Editors often type just "example.lt".
-        if ('' !== $url && ! preg_match('#^[a-z][a-z0-9+.-]*:#i', $url)) {
+        // Editors often type just "example.lt" (or "example.lt:8080", not a scheme).
+        if ('' !== $url && ! preg_match('#^[a-z][a-z0-9+.-]*:(?!\d)#i', $url)) {
             $url = 'https://' . ltrim($url, '/');
         }
         $url = esc_url($url, ['https', 'http']);
@@ -206,7 +206,7 @@ class YouTubeChannelBlock
             return [];
         }
         $label = is_string($label) ? sanitize_text_field($label) : '';
-        return [$url, '' !== $label ? $label : preg_replace('/^www\./i', '', strtolower($host))];
+        return [$url, '' !== $label ? $label : preg_replace('/^www\./i', '', strtr($host, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'))];
     }
 
     /** Seconds in an ISO 8601 duration such as PT1H2M3S; 0 for live streams or bad input. */
