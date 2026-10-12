@@ -45,6 +45,23 @@ export function isChannel( value ) {
 	}
 }
 
+/** True for an http(s) address, with or without https://. Mirrors YouTubeChannelBlock::website(). */
+export function isWebsite( value ) {
+	let text = String( value || '' ).trim();
+	if ( text === '' ) {
+		return false;
+	}
+	if ( ! /^[a-z][a-z0-9+.-]*:(?!\d)/i.test( text ) ) {
+		text = 'https://' + text.replace( /^\/+/, '' );
+	}
+	try {
+		const url = new URL( text );
+		return /^https?:$/.test( url.protocol ) && url.hostname !== '';
+	} catch ( error ) {
+		return false;
+	}
+}
+
 function ChannelForm( { channel, onSubmit, onCancel } ) {
 	const [ draft, setDraft ] = useState( channel || '' );
 	const [ touched, setTouched ] = useState( false );
@@ -95,7 +112,7 @@ function ChannelForm( { channel, onSubmit, onCancel } ) {
 }
 
 export default function YouTubeChannelEdit( { attributes, setAttributes } ) {
-	const { channel, title, count, excludeShorts, links } = attributes;
+	const { channel, title, website, websiteLabel, count, excludeShorts, links } = attributes;
 	const [ editing, setEditing ] = useState( false );
 	const blockProps = useBlockProps();
 	const valid = isChannel( channel );
@@ -146,6 +163,29 @@ export default function YouTubeChannelEdit( { attributes, setAttributes } ) {
 						value={ title }
 						onChange={ ( value ) => setAttributes( { title: value } ) }
 					/>
+					<TextControl
+						__nextHasNoMarginBottom
+						__next40pxDefaultSize
+						type="url"
+						label={ __( 'Main website', 'alps-gutenberg-blocks' ) }
+						help={ ! website || isWebsite( website )
+							? __( 'Shown under the title as a link with its address, for example example.lt.', 'alps-gutenberg-blocks' )
+							: __( 'Not a web address, so no link is shown.', 'alps-gutenberg-blocks' ) }
+						placeholder="https://"
+						value={ website }
+						// An emptied website also drops its hidden link text.
+						onChange={ ( value ) => setAttributes( value ? { website: value } : { website: '', websiteLabel: '' } ) }
+					/>
+					{ website && (
+						<TextControl
+							__nextHasNoMarginBottom
+							__next40pxDefaultSize
+							label={ __( 'Website link text', 'alps-gutenberg-blocks' ) }
+							help={ __( 'Leave empty to show the address without https:// and www.', 'alps-gutenberg-blocks' ) }
+							value={ websiteLabel }
+							onChange={ ( value ) => setAttributes( { websiteLabel: value } ) }
+						/>
+					) }
 					<RangeControl
 						__nextHasNoMarginBottom
 						__next40pxDefaultSize

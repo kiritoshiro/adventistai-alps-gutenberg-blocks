@@ -59,7 +59,8 @@ youtube-nocookie.com player plays that video and continues with the following on
 
 - **Settings:** channel (link such as `https://www.youtube.com/@TrijuAngeluStudija`, `@handle` or `UC…` ID), title
   (defaults to the channel name), number of videos (1–25), "Leave out Shorts" (on by default: every video of
-  3 minutes or less, because the API does not mark Shorts) and Facebook/Instagram/TikTok/X profile links.
+  3 minutes or less, because the API does not mark Shorts), the main website (shown under the title as its address,
+  e.g. `example.lt`, or as custom link text) and Facebook/Instagram/TikTok/X profile links.
 - **API key:** Settings → Media → "YouTube Data API key", or `define( 'ALPS_YOUTUBE_API_KEY', '…' );`. If both are
   empty, the WP YouTube plugin's key (`WPY_YOUTUBE_API_KEY` or its setting) is used. Requests come from the server, so
   the key must not have a website (HTTP referrer) restriction; restrict it to the YouTube Data API v3 instead (and
