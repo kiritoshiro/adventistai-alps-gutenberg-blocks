@@ -187,6 +187,28 @@ class YouTubeChannelBlock
             : 'https://www.youtube.com/@' . rawurlencode($channel['handle']);
     }
 
+    /**
+     * The website link under the title: its escaped address and the text to show,
+     * by default the domain without "www." (https://www.example.lt/ → example.lt).
+     *
+     * @return array [url, text], or [] without a valid http(s) address.
+     */
+    public static function website($url, $label)
+    {
+        $url = is_string($url) ? trim($url) : '';
+        // Editors often type just "example.lt".
+        if ('' !== $url && ! preg_match('#^[a-z][a-z0-9+.-]*:#i', $url)) {
+            $url = 'https://' . ltrim($url, '/');
+        }
+        $url = esc_url($url, ['https', 'http']);
+        $host = '' !== $url ? wp_parse_url(html_entity_decode($url, ENT_QUOTES, 'UTF-8'), PHP_URL_HOST) : '';
+        if (! is_string($host) || '' === $host) {
+            return [];
+        }
+        $label = is_string($label) ? sanitize_text_field($label) : '';
+        return [$url, '' !== $label ? $label : preg_replace('/^www\./i', '', strtolower($host))];
+    }
+
     /** Seconds in an ISO 8601 duration such as PT1H2M3S; 0 for live streams or bad input. */
     public static function seconds($duration)
     {
@@ -552,7 +574,7 @@ class YouTubeChannelBlock
         );
     }
 
-    /** Inline brand icons: Simple Icons (CC0) for YouTube, Font Awesome Free 6 (CC BY 4.0) for the rest. */
+    /** Inline icons: Simple Icons (CC0) for YouTube, Font Awesome Free 6 (CC BY 4.0) for the other brands, Material Icons (Apache 2.0) for the rest. */
     private static function icon($network)
     {
         $icons = [
@@ -561,6 +583,7 @@ class YouTubeChannelBlock
             'instagram' => ['0 0 448 512', 'M224.1 141c-63.6 0-114.9 51.3-114.9 114.9s51.3 114.9 114.9 114.9S339 319.5 339 255.9 287.7 141 224.1 141zm0 189.6c-41.1 0-74.7-33.5-74.7-74.7s33.5-74.7 74.7-74.7 74.7 33.5 74.7 74.7-33.6 74.7-74.7 74.7zm146.4-194.3c0 14.9-12 26.8-26.8 26.8-14.9 0-26.8-12-26.8-26.8s12-26.8 26.8-26.8 26.8 12 26.8 26.8zm76.1 27.2c-1.7-35.9-9.9-67.7-36.2-93.9-26.2-26.2-58-34.4-93.9-36.2-37-2.1-147.9-2.1-184.9 0-35.8 1.7-67.6 9.9-93.9 36.1S3.3 127.5 1.5 163.4c-2.1 37-2.1 147.9 0 184.9 1.7 35.9 9.9 67.7 36.2 93.9s58 34.4 93.9 36.2c37 2.1 147.9 2.1 184.9 0 35.9-1.7 67.7-9.9 93.9-36.2 26.2-26.2 34.4-58 36.2-93.9 2.1-37 2.1-147.8 0-184.8zM398.8 388c-7.8 19.6-22.9 34.7-42.6 42.6-29.5 11.7-99.5 9-132.1 9s-102.7 2.6-132.1-9c-19.6-7.8-34.7-22.9-42.6-42.6-11.7-29.5-9-99.5-9-132.1s-2.6-102.7 9-132.1c7.8-19.6 22.9-34.7 42.6-42.6 29.5-11.7 99.5-9 132.1-9s102.7-2.6 132.1 9c19.6 7.8 34.7 22.9 42.6 42.6 11.7 29.5 9 99.5 9 132.1s2.7 102.7-9 132.1z'],
             'tiktok'    => ['0 0 448 512', 'M448 209.9a210.1 210.1 0 0 1-122.8-39.2v178.7A162.6 162.6 0 1 1 185 188.3v89.9a74.6 74.6 0 1 0 52.2 71.2V0h88a121.2 121.2 0 0 0 1.9 22.2A122.2 122.2 0 0 0 381 102.2a121.4 121.4 0 0 0 67 20.1v87.6z'],
             'x'         => ['0 0 512 512', 'M389.2 48h70.6L305.6 224.2 487 464H345L233.8 318.6 106.5 464H35.8l164.9-188.5L26.8 48H172.4l100.5 132.9L389.2 48zm-24.8 373.8h39.1L151.1 88h-42l255.3 333.8z'],
+            'website'   => ['0 0 24 24', 'M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm6.93 6h-2.95c-.32-1.25-.78-2.45-1.38-3.56 1.84.63 3.37 1.91 4.33 3.56zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2 0 .68.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56-1.84-.63-3.37-1.9-4.33-3.56zm2.95-8H5.08c.96-1.66 2.49-2.93 4.33-3.56C8.81 5.55 8.35 6.75 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2 0-.68.07-1.35.16-2h4.68c.09.65.16 1.32.16 2 0 .68-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95c-.96 1.65-2.49 2.93-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2 0-.68-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z'],
             'play'      => ['0 0 24 24', 'M8 5v14l11-7z'],
             'prev'      => ['0 0 24 24', 'M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z'],
             'next'      => ['0 0 24 24', 'M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z'],
@@ -602,6 +625,11 @@ class YouTubeChannelBlock
         $first = $videos[0];
         $title = isset($attributes['title']) && is_string($attributes['title']) && '' !== trim($attributes['title']) ? trim($attributes['title']) : $data['title'];
         $links = isset($attributes['links']) && is_array($attributes['links']) ? $attributes['links'] : [];
+        $website = self::website(isset($attributes['website']) ? $attributes['website'] : '', isset($attributes['websiteLabel']) ? $attributes['websiteLabel'] : '');
+        // The website is a visible address under the title, not one more icon:
+        // visitors read "example.lt" as the main site at a glance.
+        $heading = ('' !== $title ? '<h2 class="alps-ytc__title">' . esc_html($title) . '</h2>' : '')
+            . ($website ? '<a class="alps-ytc__site" href="' . $website[0] . '" target="_blank" rel="noopener">' . self::icon('website') . '<span>' . esc_html($website[1]) . '</span></a>' : '');
 
         wp_enqueue_style(self::HANDLE);
         wp_enqueue_script(self::HANDLE);
@@ -661,7 +689,7 @@ class YouTubeChannelBlock
             . '</section>',
             $wrapper,
             esc_attr__('YouTube video player', 'alps-gutenberg-blocks'),
-            '' !== $title ? '<h2 class="alps-ytc__title">' . esc_html($title) . '</h2>' : '',
+            '' !== $heading ? '<div class="alps-ytc__heading">' . $heading . '</div>' : '',
             /* translators: %s: channel name */
             esc_attr(sprintf(__('%s on social media', 'alps-gutenberg-blocks'), '' !== $title ? $title : 'YouTube')),
             $profiles,

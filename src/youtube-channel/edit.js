@@ -95,7 +95,7 @@ function ChannelForm( { channel, onSubmit, onCancel } ) {
 }
 
 export default function YouTubeChannelEdit( { attributes, setAttributes } ) {
-	const { channel, title, count, excludeShorts, links } = attributes;
+	const { channel, title, website, websiteLabel, count, excludeShorts, links } = attributes;
 	const [ editing, setEditing ] = useState( false );
 	const blockProps = useBlockProps();
 	const valid = isChannel( channel );
@@ -146,6 +146,26 @@ export default function YouTubeChannelEdit( { attributes, setAttributes } ) {
 						value={ title }
 						onChange={ ( value ) => setAttributes( { title: value } ) }
 					/>
+					<TextControl
+						__nextHasNoMarginBottom
+						__next40pxDefaultSize
+						type="url"
+						label={ __( 'Main website', 'alps-gutenberg-blocks' ) }
+						help={ __( 'Shown under the title as a link with its address, for example example.lt.', 'alps-gutenberg-blocks' ) }
+						placeholder="https://"
+						value={ website }
+						onChange={ ( value ) => setAttributes( { website: value } ) }
+					/>
+					{ website && (
+						<TextControl
+							__nextHasNoMarginBottom
+							__next40pxDefaultSize
+							label={ __( 'Website link text', 'alps-gutenberg-blocks' ) }
+							help={ __( 'Leave empty to show the address without https:// and www.', 'alps-gutenberg-blocks' ) }
+							value={ websiteLabel }
+							onChange={ ( value ) => setAttributes( { websiteLabel: value } ) }
+						/>
+					) }
 					<RangeControl
 						__nextHasNoMarginBottom
 						__next40pxDefaultSize

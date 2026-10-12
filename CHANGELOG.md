@@ -3,6 +3,11 @@ A record of the changes made to `ALPS Gutenberg Blocks`.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.0]
+
+### Added
+- YouTube Channel Videos: optional "Main website" setting. The site appears under the block title as a link showing its address (for example `example.lt`, without `https://` and `www.`) with a globe icon, or as custom link text. An address typed without `https://` is completed; anything other than an http(s) address is ignored.
+
 ## [3.3.0]
 
 ### Added

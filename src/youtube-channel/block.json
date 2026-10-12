@@ -29,6 +29,14 @@
 			"type": "boolean",
 			"default": true
 		},
+		"website": {
+			"type": "string",
+			"default": ""
+		},
+		"websiteLabel": {
+			"type": "string",
+			"default": ""
+		},
 		"links": {
 			"type": "object",
 			"default": {}

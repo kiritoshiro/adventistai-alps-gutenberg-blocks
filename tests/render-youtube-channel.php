@@ -185,6 +185,15 @@ check('cached list: no API requests on later renders', 0 === count($GLOBALS['cal
 $custom = $block->render(['title' => 'Mano <em>kanalas</em>'] + $attributes);
 check('custom title is escaped', false !== strpos($custom, 'Mano &lt;em&gt;kanalas&lt;/em&gt;'));
 
+// Main website: a visible address under the title.
+check('no website, no website link', false === strpos($html, 'alps-ytc__site'));
+$site = $block->render(['website' => ' https://www.TrijuAngeluStudija.lt/apie?x=1&y=2 '] + $attributes);
+check('website shown under the title as its domain', false !== strpos($site, '<div class="alps-ytc__heading"><h2 class="alps-ytc__title">Trijų Angelų Studija</h2><a class="alps-ytc__site" href="https://www.TrijuAngeluStudija.lt/apie?x=1&amp;y=2" target="_blank" rel="noopener"><svg') && false !== strpos($site, '<span>trijuangelustudija.lt</span></a></div>'));
+$site = $block->render(['website' => 'https://example.lt', 'websiteLabel' => 'Mūsų <b>svetainė</b>'] + $attributes);
+check('custom website text is stripped and escaped', false !== strpos($site, '<span>Mūsų svetainė</span>'));
+check('unsafe or empty website addresses are left out', false === strpos($block->render(['website' => 'javascript:alert(1)'] + $attributes), 'alps-ytc__site') && false === strpos($block->render(['website' => ['bad']] + $attributes), 'alps-ytc__site') && false === strpos($block->render(['website' => 'https://'] + $attributes), 'alps-ytc__site'));
+check('an address without https:// is completed', ['https://example.lt/naujienos', 'example.lt'] === Block::website('example.lt/naujienos', '') && ['http://www.x.lt', 'x.lt'] === Block::website('http://www.x.lt', '') && [] === Block::website('mailto:a@b.lt', ''));
+
 // Stale list: served at once, refreshed by WP-Cron.
 $key = 'alps_gb_ytc_' . md5(json_encode([['handle' => 'TrijuAngeluStudija'], true]));
 $GLOBALS['options'][$key]['time'] = time() - 7200;
