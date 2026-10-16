@@ -41,6 +41,10 @@ const packageFiles = [
   'src/book-showcase/block.json',
   'src/book-showcase/class-book-showcase-block.php',
   'dist/book-showcase.css',
+  'src/podcast-season/block.json',
+  'src/podcast-season/class-podcast-season-block.php',
+  'dist/podcast-season.js',
+  'dist/podcast-season.css',
 ];
 const editorStyles = ['src/latest-posts/editor.scss', 'src/youtube-channel/editor.scss'];
 
@@ -79,6 +83,16 @@ async function buildAssets() {
   fs.writeFileSync(
     path.join(root, 'dist/youtube-channel.css'),
     sass.compile(path.join(root, 'src/youtube-channel/style.scss'), { style: 'compressed' }).css
+  );
+
+  // Front end of the Podcast Season block, loaded only where it renders.
+  await esbuild.build({
+    absWorkingDir: root, entryPoints: ['src/podcast-season/view.js'], bundle: true,
+    outfile: 'dist/podcast-season.js', format: 'iife', minify: true, target: ['es2020'],
+  });
+  fs.writeFileSync(
+    path.join(root, 'dist/podcast-season.css'),
+    sass.compile(path.join(root, 'src/podcast-season/style.scss'), { style: 'compressed' }).css
   );
 }
 

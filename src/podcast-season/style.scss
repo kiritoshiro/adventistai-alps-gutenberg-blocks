@@ -1,0 +1,268 @@
+// Podcast Season, front end and editor preview. Colours match YouTube Channel
+// Videos and are custom properties so a theme can restyle the block. Fonts
+// come from the theme; icons are drawn in CSS, so nothing else is loaded.
+//
+// Selectors repeat .alps-pod where the ALPS theme would otherwise win: it
+// draws !important underlines on links in `.text` and bullets on list items.
+
+.alps-pod {
+	--alps-pod-accent: #d4af37;
+	--alps-pod-accent-deep: #8a6508; // 5.3:1 on white (WCAG AA)
+	--alps-pod-primary: #1e3a8a;
+	--alps-pod-surface: #fff;
+	--alps-pod-card: #f5f7fb;
+	--alps-pod-card-hover: #ebf0f8;
+	--alps-pod-muted: #556274; // 5.8:1 on the card colour
+	--alps-pod-border: rgba(30, 58, 138, 0.12);
+
+	box-sizing: border-box;
+	max-width: 1000px;
+	margin: 2rem auto;
+	padding: 2rem;
+	border-radius: 24px;
+	background: var(--alps-pod-surface);
+	color: var(--alps-pod-primary);
+	box-shadow: 0 0 0 1px var(--alps-pod-border), 0 25px 50px -12px rgba(30, 58, 138, 0.15);
+
+	*,
+	*::before,
+	*::after {
+		box-sizing: border-box;
+	}
+
+	&.alignwide,
+	&.alignfull {
+		max-width: none;
+	}
+
+	// ALPS numbers content lists (`.text ol { list-style: decimal }`); the
+	// block shows the feed's own episode numbers instead.
+	ol {
+		margin: 0;
+		padding: 0;
+		list-style: none !important;
+	}
+
+	li {
+		margin: 0;
+		padding: 0;
+		list-style: none !important;
+		text-indent: 0 !important;
+
+		&::before {
+			content: none !important;
+			display: none !important;
+		}
+	}
+
+	p {
+		margin: 0;
+	}
+}
+
+.alps-pod__header {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	margin-bottom: 1.25rem;
+}
+
+.alps-pod .alps-pod__cover {
+	flex: 0 0 auto;
+	width: 96px;
+	height: 96px;
+	max-width: none;
+	margin: 0;
+	border-radius: 16px;
+	object-fit: cover;
+	box-shadow: 0 0 0 1px var(--alps-pod-border);
+}
+
+.alps-pod__heading {
+	min-width: 0;
+}
+
+.alps-pod .alps-pod__title {
+	margin: 0 0 4px;
+	color: var(--alps-pod-primary);
+	font-size: 1.25rem;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+	line-height: 1.3;
+}
+
+.alps-pod .alps-pod__meta {
+	color: var(--alps-pod-muted);
+	font-size: 0.9rem;
+}
+
+.alps-pod__player {
+	margin-bottom: 1rem;
+	padding: 1rem;
+	border-radius: 16px;
+	background: var(--alps-pod-card);
+}
+
+.alps-pod .alps-pod__now {
+	margin-bottom: 0.5rem;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.alps-pod__audio {
+	display: block;
+	width: 100%;
+	height: 40px;
+}
+
+.alps-pod__list {
+	display: grid;
+	gap: 2px;
+}
+
+// Episode rows: a link to the audio file, played in the block's player.
+.alps-pod.alps-pod a.alps-pod__episode,
+.alps-pod.alps-pod a.alps-pod__episode:hover,
+.alps-pod.alps-pod a.alps-pod__episode:focus {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 12px;
+	border: 0 none !important;
+	border-radius: 12px;
+	color: var(--alps-pod-primary);
+	line-height: 1.4;
+	box-shadow: none !important;
+	text-decoration: none !important;
+}
+
+.alps-pod.alps-pod a.alps-pod__episode {
+	transition: background-color 0.15s ease;
+
+	&:hover {
+		background: var(--alps-pod-card-hover);
+	}
+
+	&:focus-visible {
+		outline: 2px solid var(--alps-pod-accent-deep);
+		outline-offset: 2px;
+	}
+
+	&.is-active {
+		background: var(--alps-pod-card);
+		font-weight: 600;
+	}
+}
+
+// Play triangle; pause bars on the episode that is playing.
+.alps-pod__icon {
+	position: relative;
+	flex: 0 0 auto;
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	background: var(--alps-pod-primary);
+
+	&::after {
+		content: "";
+		position: absolute;
+		top: 10px;
+		left: 12px;
+		width: 10px;
+		height: 12px;
+		background: #fff;
+		clip-path: polygon(0 0, 100% 50%, 0 100%);
+	}
+}
+
+.is-active .alps-pod__icon {
+	background: var(--alps-pod-accent-deep);
+}
+
+.alps-pod.is-playing .is-active .alps-pod__icon::after {
+	left: 11px;
+	background: linear-gradient(to right, #fff 0 35%, transparent 35% 65%, #fff 65%);
+	clip-path: none;
+}
+
+.alps-pod__number {
+	flex: 0 0 auto;
+	min-width: 1.75em;
+	color: var(--alps-pod-muted);
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+
+.alps-pod__name {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.alps-pod__duration {
+	flex: 0 0 auto;
+	color: var(--alps-pod-muted);
+	font-size: 0.875rem;
+	font-weight: 400;
+	font-variant-numeric: tabular-nums;
+}
+
+.alps-pod .alps-pod__description {
+	padding: 0 12px 10px 56px;
+	color: var(--alps-pod-muted);
+	font-size: 0.9rem;
+	line-height: 1.5;
+}
+
+.alps-pod__more {
+	margin-top: 2px;
+
+	> summary {
+		display: inline-block;
+		margin: 0.75rem 0 0.5rem 12px;
+		color: var(--alps-pod-accent-deep);
+		font-weight: 600;
+		cursor: pointer;
+
+		&:hover,
+		&:focus-visible {
+			text-decoration: underline;
+			text-underline-offset: 3px;
+		}
+	}
+
+	&[open] > summary {
+		margin-bottom: 0.75rem;
+	}
+}
+
+// Shown to editors only (see PodcastSeasonBlock::notice()).
+.alps-pod-notice {
+	padding: 12px 16px;
+	border-left: 4px solid #d4af37;
+	background: #fdf8e7;
+	color: #1e3a8a;
+}
+
+@media (max-width: 640px) {
+	.alps-pod {
+		padding: 1.25rem;
+		border-radius: 16px;
+	}
+
+	.alps-pod .alps-pod__cover {
+		width: 72px;
+		height: 72px;
+		border-radius: 12px;
+	}
+
+	.alps-pod .alps-pod__description {
+		padding-left: 12px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.alps-pod.alps-pod a.alps-pod__episode {
+		transition: none;
+	}
+}

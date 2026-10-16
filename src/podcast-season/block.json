@@ -1,0 +1,64 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "alps-gutenberg-blocks/podcast-season",
+	"title": "Podcast Season",
+	"category": "embed",
+	"icon": "microphone",
+	"description": "One season of a podcast from its RSS feed: an audio player and the episode list. New episodes appear by themselves; no audio loads until a visitor presses play.",
+	"keywords": [ "podcast", "audio", "spotify", "season", "tinklalaidė", "epizodai" ],
+	"textdomain": "alps-gutenberg-blocks",
+	"supports": {
+		"html": false,
+		"align": [ "wide", "full" ]
+	},
+	"attributes": {
+		"feedUrl": {
+			"type": "string",
+			"default": ""
+		},
+		"season": {
+			"type": "number",
+			"default": 1
+		},
+		"title": {
+			"type": "string",
+			"default": ""
+		},
+		"order": {
+			"type": "string",
+			"enum": [ "asc", "desc" ],
+			"default": "asc"
+		},
+		"visible": {
+			"type": "number",
+			"default": 10
+		},
+		"removePrefix": {
+			"type": "string",
+			"default": ""
+		},
+		"showNumbers": {
+			"type": "boolean",
+			"default": true
+		},
+		"showCover": {
+			"type": "boolean",
+			"default": true
+		},
+		"showDescription": {
+			"type": "boolean",
+			"default": false
+		},
+		"descriptionWords": {
+			"type": "number",
+			"default": 30
+		},
+		"autoNext": {
+			"type": "boolean",
+			"default": true
+		}
+	},
+	"editorScript": "alps-gb",
+	"editorStyle": [ "alps-gb-editor", "alps-gb-podcast-season" ]
+}
