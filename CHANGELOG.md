@@ -3,6 +3,12 @@ A record of the changes made to `ALPS Gutenberg Blocks`.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.1]
+
+### Changed
+- YouTube Channel Videos: thumbnails also come as AVIF (PageSpeed "Serve images in modern formats" on adventistai.lt, where a phone downloaded a 96 KB `sddefault.jpg` for the poster). YouTube offers only JPEG and WebP, so when WP-Cron saves a thumbnail it also writes an AVIF copy beside it with WordPress's image editor, at the theme's AVIF quality (`_alps_image_avif_quality`) or 60. YouTube's 4:3 `hqdefault`/`sddefault` images carry black bars that the block's 16:9 frames crop off (`object-fit: cover`); the AVIF copies leave them out, so nothing visible changes. The poster and cards become a `<picture>` with an AVIF source (same widths and sizes) and the JPEG as fallback, once every width has a copy; until then the JPEG or YouTube's address is used as before. Thumbnails already saved get their AVIF copy on the next run; sites whose WordPress cannot write AVIF keep the JPEGs only. Old AVIF copies are pruned with the JPEGs. A file that fails to convert is skipped and retried on the next run; a run stops converting when the editor cannot write AVIF at all (none available, or it writes another format) or after 3 failures in a row, and stops after about 20 seconds to continue a minute later. The editor is chosen for AVIF output even on sites that map JPEG to another format (`image_editor_output_format`). Temporary files a broken run leaves behind are removed after a day.
+- YouTube Channel Videos: `sizes` follows the block's real widths (its padding, the 1000 px limit, one, two or three cards per row) instead of `100vw`/`80vw`, and starts with `auto` on the AVIF source too, so browsers that size lazy images from the layout pick the same width for both formats. Phones fetching both `hqdefault` and `sddefault` was two elements (the poster at about 640 device pixels and the first card at about 480), not one image downloaded twice.
+
 ## [3.5.0]
 
 ### Added

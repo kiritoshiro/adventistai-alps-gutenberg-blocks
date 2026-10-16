@@ -73,6 +73,8 @@ youtube-nocookie.com player plays that video and continues with the following on
   10 minutes between attempts.
 - **Thumbnails:** after a list is fetched, WP-Cron copies its thumbnails from `i.ytimg.com` into
   `wp-content/uploads/alps-ytc/` (40 per run), so the page loads them from the site with its long cache lifetime.
+  When WordPress can write AVIF, each copy also gets an AVIF version (cropped to 16:9, at the theme's
+  `_alps_image_avif_quality` or 60), served through `<picture>` with the JPEG as fallback.
   Until a copy exists YouTube's address is used. Copies unused for 90 days are removed.
 - **Without a channel, a key or videos** editors see a short note in place of the block; visitors see nothing.
 

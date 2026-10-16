@@ -44,8 +44,22 @@ class YouTubeChannelBlock
     const THUMBS_PER_RUN = 40;
     const THUMBS_MAX_BYTES = 600000;
 
+    /** A run stops after this many seconds (AVIF encodes can take seconds each on shared hosting). */
+    const THUMBS_RUN_SECONDS = 20;
+
+    /** Conversions failing in a row before a run stops making AVIF copies. */
+    const AVIF_MAX_FAILURES = 3;
+
     /** Copies unused for this long are removed; a page still showing one copies it again. */
     const THUMBS_KEEP_DAYS = 90;
+
+    /**
+     * AVIF quality when the theme sets none (_alps_image_avif_quality). The
+     * copies are made from YouTube's already compressed JPEGs, whose
+     * artefacts a higher quality would only spend bytes preserving, and are
+     * shown at their own width or smaller.
+     */
+    const AVIF_QUALITY = 60;
 
     /** Set while rendering when a thumbnail has no local copy yet. */
     private static $missingThumbs = false;
@@ -420,9 +434,10 @@ class YouTubeChannelBlock
     /**
      * Where a YouTube thumbnail URL is copied: [path, url], or null for any
      * other URL or when uploads are unavailable. The name comes from the
-     * validated video ID and image name only.
+     * validated video ID and image name only; $format 'avif' gives the AVIF
+     * copy beside the JPEG.
      */
-    private static function localThumb($url)
+    private static function localThumb($url, $format = 'jpg')
     {
         if (! is_string($url) || ! preg_match('#^https://i\.ytimg\.com/vi/([A-Za-z0-9_-]{11})/([a-z]+)\.jpg$#D', $url, $m)) {
             return null;
@@ -431,7 +446,7 @@ class YouTubeChannelBlock
         if (! empty($uploads['error']) || empty($uploads['basedir']) || empty($uploads['baseurl'])) {
             return null;
         }
-        $name = $m[1] . '-' . $m[2] . '.jpg';
+        $name = $m[1] . '-' . $m[2] . ('avif' === $format ? '.avif' : '.jpg');
         return [
             trailingslashit($uploads['basedir']) . self::THUMBS_DIR . '/' . $name,
             trailingslashit($uploads['baseurl']) . self::THUMBS_DIR . '/' . $name,
@@ -452,8 +467,10 @@ class YouTubeChannelBlock
     /**
      * WP-Cron: copies the thumbnails of one cached list (the sizes the block
      * shows: up to 640 px, and 1280 px for the first video's player in a wide
-     * block), THUMBS_PER_RUN at a time, then removes copies unused for
-     * THUMBS_KEEP_DAYS.
+     * block) with an AVIF copy of each when WordPress can write AVIF,
+     * THUMBS_PER_RUN or THUMBS_RUN_SECONDS at a time, then removes copies
+     * unused for THUMBS_KEEP_DAYS. JPEGs saved before the AVIF copies existed
+     * get theirs on the next run.
      *
      * @param mixed $key Cache key from cacheKey().
      */
@@ -466,28 +483,133 @@ class YouTubeChannelBlock
         if (! is_array($data) || empty($data['videos']) || ! is_array($data['videos'])) {
             return;
         }
+        $writeAvif = function_exists('wp_image_editor_supports') && wp_image_editor_supports(['mime_type' => 'image/avif']);
         $left = self::THUMBS_PER_RUN;
+        $start = microtime(true);
+        $failures = 0;
         $keep = [];
         foreach (array_values($data['videos']) as $index => $video) {
             $thumbs = is_array($video) && isset($video['thumbs']) && is_array($video['thumbs']) ? $video['thumbs'] : [];
             foreach ($thumbs as $width => $url) {
                 $local = self::localThumb($url);
-                if (! $local || ((int) $width > 640 && 0 !== $index)) {
+                $avif = self::localThumb($url, 'avif');
+                if (! $local || ! $avif || ((int) $width > 640 && 0 !== $index)) {
                     continue;
                 }
                 $keep[basename($local[0])] = true;
-                if (is_file($local[0])) {
+                $keep[basename($avif[0])] = true;
+                $saved = is_file($local[0]);
+                if ($saved && (! $writeAvif || is_file($avif[0]))) {
                     continue;
                 }
-                if ($left-- <= 0) {
+                if ($left-- <= 0 || microtime(true) - $start >= self::THUMBS_RUN_SECONDS) {
                     // The rest in the next run.
                     wp_schedule_single_event(time() + 60, self::THUMBS_HOOK, [$key]);
                     return;
                 }
-                self::download($url, $local[0]);
+                if (! $saved && ! self::download($url, $local[0])) {
+                    continue;
+                }
+                if (! $writeAvif) {
+                    continue;
+                }
+                // A file that fails is retried on the next run. When the editor
+                // cannot write AVIF at all, or several files fail in a row, the
+                // rest would fail too, so the run stops converting.
+                $result = self::saveAvif($local[0], $avif[0]);
+                $failures = true === $result ? 0 : $failures + 1;
+                if (null === $result || $failures >= self::AVIF_MAX_FAILURES) {
+                    $writeAvif = false;
+                }
             }
         }
         self::prune($keep);
+    }
+
+    /**
+     * The part of a thumbnail the block shows, as [x, y, width, height], or
+     * null when the image is already 16:9 (mqdefault, maxresdefault). Posters
+     * and cards are 16:9 boxes filled with object-fit: cover, centred, so
+     * YouTube's 4:3 hqdefault and sddefault images lose exactly their black
+     * bars there; the AVIF copies leave the bars out.
+     */
+    public static function frame($width, $height)
+    {
+        $width = (int) $width;
+        $height = (int) $height;
+        if ($width < 16 || $height < 9) {
+            return null;
+        }
+        $frameHeight = (int) round($width * 9 / 16);
+        if (abs($height - $frameHeight) <= 1) {
+            return null;
+        }
+        if ($height > $frameHeight) {
+            return [0, intdiv($height - $frameHeight, 2), $width, $frameHeight];
+        }
+        $frameWidth = (int) round($height * 16 / 9);
+        return [intdiv($width - $frameWidth, 2), 0, $frameWidth, $height];
+    }
+
+    /** The theme's AVIF quality (_alps_image_avif_quality), else AVIF_QUALITY. */
+    public static function avifQuality()
+    {
+        $quality = get_option('_alps_image_avif_quality', '');
+        return is_numeric($quality) && (int) $quality >= 1 && (int) $quality <= 100 ? (int) $quality : self::AVIF_QUALITY;
+    }
+
+    /**
+     * Writes the AVIF copy of a saved JPEG with WordPress's image editor: true
+     * when written, false when this file failed, null when the editor cannot
+     * write AVIF here at all.
+     */
+    private static function saveAvif($jpeg, $path)
+    {
+        // An editor that can also write AVIF (Imagick may read the JPEG but lack
+        // AVIF where GD has it). A site mapping JPEG to another format through
+        // image_editor_output_format would replace output_mime_type, so the
+        // mapping is pinned to AVIF for this call.
+        $format = function ($formats) {
+            return ['image/jpeg' => 'image/avif'] + (is_array($formats) ? $formats : []);
+        };
+        add_filter('image_editor_output_format', $format, PHP_INT_MAX);
+        $editor = wp_get_image_editor($jpeg, ['output_mime_type' => 'image/avif']);
+        remove_filter('image_editor_output_format', $format, PHP_INT_MAX);
+        // No editor at all stops the run; any other error (a file that will not
+        // load) skips only this file.
+        if (is_wp_error($editor)) {
+            return 'image_no_editor' === $editor->get_error_code() ? null : false;
+        }
+        $size = $editor->get_size();
+        $frame = self::frame(isset($size['width']) ? $size['width'] : 0, isset($size['height']) ? $size['height'] : 0);
+        if ($frame && is_wp_error($editor->crop($frame[0], $frame[1], $frame[2], $frame[3]))) {
+            return false;
+        }
+        // WordPress resets the quality to the output format's default when it
+        // converts, so the quality is also given through the filter it asks.
+        $quality = self::avifQuality();
+        $filter = function ($value, $mime) use ($quality) {
+            return 'image/avif' === $mime ? $quality : $value;
+        };
+        add_filter('wp_editor_set_quality', $filter, PHP_INT_MAX, 2);
+        $editor->set_quality($quality);
+        // Written beside the target and renamed, like the JPEG. The editor keeps
+        // the .avif extension, so the temporary name ends with it.
+        $result = $editor->save(substr($path, 0, -5) . '.' . wp_generate_password(8, false) . '.tmp.avif', 'image/avif');
+        remove_filter('wp_editor_set_quality', $filter, PHP_INT_MAX);
+        if (is_wp_error($result) || ! is_array($result) || empty($result['path'])) {
+            return false;
+        }
+        if ('image/avif' !== (isset($result['mime-type']) ? $result['mime-type'] : '')) {
+            // The editor wrote another format: it would for every file.
+            wp_delete_file($result['path']);
+            return null;
+        }
+        if (! rename($result['path'], $path)) {
+            wp_delete_file($result['path']);
+            return false;
+        }
+        return true;
     }
 
     /** Saves a JPEG from i.ytimg.com; false when the response is not one. */
@@ -514,7 +636,12 @@ class YouTubeChannelBlock
         return true;
     }
 
-    /** Removes copies older than THUMBS_KEEP_DAYS that the list just saved does not use. */
+    /**
+     * Removes copies (JPEG and AVIF) older than THUMBS_KEEP_DAYS that the list
+     * just saved does not use, and temporary files a run left behind (a
+     * timeout or a crash between writing and renaming) older than a day. Only
+     * names localThumb(), download() and saveAvif() can build are touched.
+     */
     private static function prune(array $keep)
     {
         $uploads = wp_upload_dir(null, false);
@@ -522,8 +649,18 @@ class YouTubeChannelBlock
             return;
         }
         $limit = time() - self::THUMBS_KEEP_DAYS * DAY_IN_SECONDS;
-        foreach (glob(trailingslashit($uploads['basedir']) . self::THUMBS_DIR . '/*.jpg') ?: [] as $file) {
-            if (! isset($keep[basename($file)]) && filemtime($file) < $limit) {
+        $temporaryLimit = time() - DAY_IN_SECONDS;
+        $dir = trailingslashit($uploads['basedir']) . self::THUMBS_DIR;
+        foreach (array_merge(glob($dir . '/*.jpg') ?: [], glob($dir . '/*.avif') ?: [], glob($dir . '/*.tmp') ?: []) as $file) {
+            $name = basename($file);
+            if (preg_match('/^[A-Za-z0-9_-]{11}-[a-z]+\.(?:jpg|avif)$/D', $name)) {
+                $old = ! isset($keep[$name]) && filemtime($file) < $limit;
+            } elseif (preg_match('/^[A-Za-z0-9_-]{11}-[a-z]+\.(?:jpg\.[A-Za-z0-9]{8}\.tmp|[A-Za-z0-9]{8}\.tmp\.avif)$/D', $name)) {
+                $old = filemtime($file) < $temporaryLimit;
+            } else {
+                continue;
+            }
+            if ($old) {
                 wp_delete_file($file);
             }
         }
@@ -551,7 +688,26 @@ class YouTubeChannelBlock
         return $h ? sprintf('%d:%02d:%02d', $h, $m, $s) : sprintf('%d:%02d', $m, $s);
     }
 
-    /** <img> for a video's thumbnails, offering widths up to $maxWidth. */
+    /** "url 320w, url 480w" */
+    private static function srcset(array $urls)
+    {
+        $srcset = [];
+        foreach ($urls as $width => $url) {
+            $srcset[] = esc_url($url) . ' ' . (int) $width . 'w';
+        }
+        return implode(', ', $srcset);
+    }
+
+    /**
+     * <img> for a video's thumbnails, offering widths up to $maxWidth, inside
+     * a <picture> with the AVIF copies once every width has one.
+     *
+     * "auto" first in sizes: the image box is exactly the 16:9 picture drawn
+     * (object-fit: cover), so browsers that size lazy images from the layout
+     * pick the right file; the rest read the media list. WordPress adds
+     * "auto" to lazy <img> tags in content but not to <source>, which would
+     * then pick a different width than its <img>.
+     */
     private static function image(array $video, $sizes, $maxWidth)
     {
         $candidates = [];
@@ -561,17 +717,25 @@ class YouTubeChannelBlock
             }
         }
         ksort($candidates);
-        $candidates = array_map([__CLASS__, 'thumbUrl'], $candidates);
-        $srcset = [];
+        $avif = [];
         foreach ($candidates as $width => $url) {
-            $srcset[] = esc_url($url) . ' ' . (int) $width . 'w';
+            $local = self::localThumb($url, 'avif');
+            $avif[$width] = $local && is_file($local[0]) ? $local[1] : '';
         }
-        return sprintf(
+        $candidates = array_map([__CLASS__, 'thumbUrl'], $candidates);
+        $sizes = esc_attr('auto, ' . $sizes);
+        $img = sprintf(
             '<img src="%s" srcset="%s" sizes="%s" width="1280" height="720" alt="" loading="lazy" decoding="async">',
             esc_url(reset($candidates)),
-            esc_attr(implode(', ', $srcset)),
-            esc_attr($sizes)
+            esc_attr(self::srcset($candidates)),
+            $sizes
         );
+        // A browser takes every width from the chosen <source>, so a partial
+        // set would leave some screens with a too small image.
+        if (in_array('', $avif, true)) {
+            return $img;
+        }
+        return '<picture><source type="image/avif" srcset="' . esc_attr(self::srcset($avif)) . '" sizes="' . $sizes . '">' . $img . '</picture>';
     }
 
     /** Inline icons: Simple Icons (CC0) for YouTube, Font Awesome Free 6 (CC BY 4.0) for the other brands, Material Icons (Apache 2.0) for the rest. */
@@ -644,6 +808,14 @@ class YouTubeChannelBlock
             }
         }
 
+        // Widths from style.scss: the block pads 40 px a side (20 px up to
+        // 640 px) and stops at 1000 px unless wide or full; cards are a third
+        // of the row less two 20 px gaps, half less one up to 768 px, 80 % up to 640 px.
+        $wide = isset($attributes['align']) && in_array($attributes['align'], ['wide', 'full'], true);
+        $cardSizes = '(max-width: 640px) calc(80vw - 32px), (max-width: 768px) calc(50vw - 50px), '
+            . ($wide ? 'calc((100vw - 120px) / 3)' : '(max-width: 1000px) calc((100vw - 120px) / 3), 294px');
+        $posterSizes = '(max-width: 640px) calc(100vw - 40px), ' . ($wide ? 'calc(100vw - 80px)' : '(max-width: 1000px) calc(100vw - 80px), 920px');
+
         $cards = '';
         foreach ($videos as $index => $video) {
             $duration = self::duration($video['seconds']);
@@ -655,7 +827,7 @@ class YouTubeChannelBlock
                 esc_attr($video['title']),
                 0 === $index ? ' aria-current="true"' : '',
                 esc_attr(sprintf($playLabel, $video['title'])),
-                self::image($video, '(max-width: 640px) 80vw, (max-width: 768px) 50vw, 300px', 480),
+                self::image($video, $cardSizes, 480),
                 self::icon('play'),
                 '' !== $duration ? '<span class="alps-ytc__duration">' . esc_html($duration) . '</span>' : '',
                 esc_html($video['title']),
@@ -671,9 +843,8 @@ class YouTubeChannelBlock
             self::icon('next')
         ) : '';
 
-        $wide = isset($attributes['align']) && in_array($attributes['align'], ['wide', 'full'], true);
         $wrapper = get_block_wrapper_attributes(['class' => 'alps-ytc']);
-        $poster = self::image($first, '(max-width: 1000px) 100vw, 920px', $wide ? 1280 : 640);
+        $poster = self::image($first, $posterSizes, $wide ? 1280 : 640);
         // Copy the thumbnails this list still takes from YouTube (lists cached before 3.2.2, new videos).
         $key = self::cacheKey($channel, $excludeShorts);
         if (self::$missingThumbs && ! wp_next_scheduled(self::THUMBS_HOOK, [$key])) {

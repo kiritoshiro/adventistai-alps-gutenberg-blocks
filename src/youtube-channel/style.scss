@@ -63,6 +63,12 @@
 		fill: currentColor;
 	}
 
+	// The <picture> around the AVIF copies adds no box: the image still
+	// fills the 16:9 poster or card frame.
+	picture {
+		display: contents;
+	}
+
 	img {
 		display: block;
 		width: 100%;
