@@ -62,12 +62,29 @@ function wp_delete_file($file) { @unlink($file); }
 // WordPress's image editor: sizes by YouTube's image name, records what it was asked to do.
 $GLOBALS['avif'] = false;
 $GLOBALS['avifFail'] = false;
+$GLOBALS['cropFail'] = [];
+$GLOBALS['saveFail'] = false;
+$GLOBALS['saveMime'] = null;
+$GLOBALS['encodeSeconds'] = 0;
+$GLOBALS['clock'] = 0;
 $GLOBALS['edits'] = [];
+$GLOBALS['formats'] = [];
 $GLOBALS['filters'] = [];
 function add_filter($hook, $callback, $priority = 10, $args = 1) { $GLOBALS['filters'][$hook][] = $callback; return true; }
 function remove_filter($hook, $callback, $priority = 10) { $GLOBALS['filters'][$hook] = array_filter($GLOBALS['filters'][$hook] ?? [], function ($f) use ($callback) { return $f !== $callback; }); return true; }
 function wp_image_editor_supports($args) { return $GLOBALS['avif'] && 'image/avif' === ($args['mime_type'] ?? ''); }
-function wp_get_image_editor($file, $args = []) { $GLOBALS['edits'][] = basename($file) . ' → ' . ($args['output_mime_type'] ?? ''); return $GLOBALS['avifFail'] ? new WP_Error() : new FakeEditor($file); }
+function wp_get_image_editor($file, $args = []) {
+    $GLOBALS['edits'][] = basename($file) . ' → ' . ($args['output_mime_type'] ?? '');
+    // The output formats WordPress would read here, on a site that maps JPEG to WebP.
+    $formats = ['image/jpeg' => 'image/webp'];
+    foreach ($GLOBALS['filters']['image_editor_output_format'] ?? [] as $filter) {
+        $formats = $filter($formats, $file, 'image/jpeg');
+    }
+    $GLOBALS['formats'][] = $formats;
+    return $GLOBALS['avifFail'] ? new WP_Error() : new FakeEditor($file);
+}
+// The run's clock: real time plus the seconds the fake encodes took.
+eval('namespace ALPS\Gutenberg\Blocks; function microtime($asFloat = false) { return \microtime(true) + $GLOBALS["clock"]; }');
 class FakeEditor
 {
     public $file;
@@ -79,18 +96,29 @@ class FakeEditor
         $sizes = ['mqdefault' => [320, 180], 'hqdefault' => [480, 360], 'sddefault' => [640, 480], 'maxresdefault' => [1280, 720]];
         return ['width' => $sizes[$m[1]][0], 'height' => $sizes[$m[1]][1]];
     }
-    public function crop($x, $y, $w, $h) { $this->crop = [$x, $y, $w, $h]; return true; }
+    public function crop($x, $y, $w, $h)
+    {
+        if (in_array(basename($this->file), $GLOBALS['cropFail'], true)) {
+            return new WP_Error();
+        }
+        $this->crop = [$x, $y, $w, $h];
+        return true;
+    }
     public function set_quality($quality) { return true; }
     public function save($path, $mime)
     {
+        if ($GLOBALS['saveFail']) {
+            return new WP_Error();
+        }
         // Like WordPress 6.1+: converting to another format resets the quality through the filter.
         $quality = 82;
         foreach ($GLOBALS['filters']['wp_editor_set_quality'] ?? [] as $filter) {
             $quality = $filter($quality, $mime);
         }
         $GLOBALS['saved'][basename($this->file)] = ['crop' => $this->crop, 'quality' => $quality, 'temporary' => basename($path)];
+        $GLOBALS['clock'] += $GLOBALS['encodeSeconds'];
         file_put_contents($path, 'AVIF');
-        return ['path' => $path, 'mime-type' => $mime];
+        return ['path' => $path, 'mime-type' => $GLOBALS['saveMime'] ?? $mime];
     }
 }
 
@@ -312,8 +340,50 @@ array_map('unlink', glob($thumbDir . 'v*.avif') ?: []);
 $GLOBALS['avifFail'] = true;
 $GLOBALS['edits'] = [];
 $block->saveThumbs($key);
-check('a failed conversion is not repeated for every file in the run', ['v4aaaaaaaaa-mqdefault.jpg → image/avif'] === $GLOBALS['edits'] && ! glob($thumbDir . '*.avif'));
+check('no image editor for AVIF: not retried for every file in the run', ['v4aaaaaaaaa-mqdefault.jpg → image/avif'] === $GLOBALS['edits'] && ! glob($thumbDir . '*.avif'));
 $GLOBALS['avifFail'] = false;
+
+$GLOBALS['cropFail'] = ['v4aaaaaaaaa-hqdefault.jpg'];
+$GLOBALS['formats'] = [];
+$block->saveThumbs($key);
+$avifs = array_map('basename', glob($thumbDir . 'v*.avif') ?: []);
+sort($avifs);
+check('one file failing mid-list skips that file only', ['v3aaaaaaaaa-hqdefault.avif', 'v3aaaaaaaaa-mqdefault.avif', 'v4aaaaaaaaa-maxresdefault.avif', 'v4aaaaaaaaa-mqdefault.avif', 'v5aaaaaaaaa-hqdefault.avif', 'v5aaaaaaaaa-mqdefault.avif'] === $avifs);
+check('the editor is chosen for AVIF output despite the site\'s JPEG mapping', 7 === count($GLOBALS['formats']) && ! array_filter($GLOBALS['formats'], function ($f) { return 'image/avif' !== $f['image/jpeg']; }) && ! $GLOBALS['filters']['image_editor_output_format']);
+$GLOBALS['cropFail'] = [];
+
+array_map('unlink', glob($thumbDir . 'v*.avif') ?: []);
+$GLOBALS['saveFail'] = true;
+$GLOBALS['edits'] = [];
+$block->saveThumbs($key);
+check('3 failures in a row stop the run\'s conversions', 3 === count($GLOBALS['edits']) && ! glob($thumbDir . '*.avif'));
+$GLOBALS['saveFail'] = false;
+
+$GLOBALS['saveMime'] = 'image/jpeg';
+$GLOBALS['edits'] = [];
+$block->saveThumbs($key);
+check('an editor writing another format: temporary file removed, conversions stopped', 1 === count($GLOBALS['edits']) && ! glob($thumbDir . '*.avif'));
+$GLOBALS['saveMime'] = null;
+
+$GLOBALS['encodeSeconds'] = 8;
+$GLOBALS['saved'] = [];
+$GLOBALS['scheduled'] = [];
+$block->saveThumbs($key);
+check('a run stops after about 20 seconds and continues later', 3 === count($GLOBALS['saved']) && 3 === count(glob($thumbDir . 'v*.avif') ?: []) && [['alps_gb_youtube_channel_thumbs', [$key]]] === $GLOBALS['scheduled']);
+$GLOBALS['encodeSeconds'] = 0;
+$GLOBALS['clock'] = 0;
+
+$block->saveThumbs($key);
+touch($thumbDir . 'v4aaaaaaaaa-mqdefault.Ab3dEf7h.tmp.avif', time() - 2 * 86400);
+touch($thumbDir . 'v4aaaaaaaaa-mqdefault.jpg.Ab3dEf7h.tmp', time() - 2 * 86400);
+touch($thumbDir . 'v4aaaaaaaaa-hqdefault.Zz9yXw8v.tmp.avif', time() - 3600);
+touch($thumbDir . 'v4aaaaaaaaa-hqdefault.jpg.Zz9yXw8v.tmp', time() - 3600);
+touch($thumbDir . 'v4aaaaaaaaa-mqdefault.Ab3dEf7.tmp.avif', time() - 2 * 86400);
+touch($thumbDir . 'v4aaaaaaaaa-mqdefault.avif.Ab3dEf7h.tmp', time() - 2 * 86400);
+touch($thumbDir . 'notes.tmp', time() - 2 * 86400);
+$block->saveThumbs($key);
+check('temporary files left for over a day are removed', ! is_file($thumbDir . 'v4aaaaaaaaa-mqdefault.Ab3dEf7h.tmp.avif') && ! is_file($thumbDir . 'v4aaaaaaaaa-mqdefault.jpg.Ab3dEf7h.tmp'));
+check('recent temporary files and other names are kept', is_file($thumbDir . 'v4aaaaaaaaa-hqdefault.Zz9yXw8v.tmp.avif') && is_file($thumbDir . 'v4aaaaaaaaa-hqdefault.jpg.Zz9yXw8v.tmp') && is_file($thumbDir . 'v4aaaaaaaaa-mqdefault.Ab3dEf7.tmp.avif') && is_file($thumbDir . 'v4aaaaaaaaa-mqdefault.avif.Ab3dEf7h.tmp') && is_file($thumbDir . 'notes.tmp'));
 
 $block->saveThumbs($key);
 touch($thumbDir . 'zzoldvideoz-mqdefault.avif', time() - 100 * 86400);

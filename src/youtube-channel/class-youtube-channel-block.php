@@ -44,6 +44,12 @@ class YouTubeChannelBlock
     const THUMBS_PER_RUN = 40;
     const THUMBS_MAX_BYTES = 600000;
 
+    /** A run stops after this many seconds (AVIF encodes can take seconds each on shared hosting). */
+    const THUMBS_RUN_SECONDS = 20;
+
+    /** Conversions failing in a row before a run stops making AVIF copies. */
+    const AVIF_MAX_FAILURES = 3;
+
     /** Copies unused for this long are removed; a page still showing one copies it again. */
     const THUMBS_KEEP_DAYS = 90;
 
@@ -462,9 +468,9 @@ class YouTubeChannelBlock
      * WP-Cron: copies the thumbnails of one cached list (the sizes the block
      * shows: up to 640 px, and 1280 px for the first video's player in a wide
      * block) with an AVIF copy of each when WordPress can write AVIF,
-     * THUMBS_PER_RUN at a time, then removes copies unused for
-     * THUMBS_KEEP_DAYS. JPEGs saved before the AVIF copies existed get theirs
-     * on the next run.
+     * THUMBS_PER_RUN or THUMBS_RUN_SECONDS at a time, then removes copies
+     * unused for THUMBS_KEEP_DAYS. JPEGs saved before the AVIF copies existed
+     * get theirs on the next run.
      *
      * @param mixed $key Cache key from cacheKey().
      */
@@ -479,6 +485,8 @@ class YouTubeChannelBlock
         }
         $writeAvif = function_exists('wp_image_editor_supports') && wp_image_editor_supports(['mime_type' => 'image/avif']);
         $left = self::THUMBS_PER_RUN;
+        $start = microtime(true);
+        $failures = 0;
         $keep = [];
         foreach (array_values($data['videos']) as $index => $video) {
             $thumbs = is_array($video) && isset($video['thumbs']) && is_array($video['thumbs']) ? $video['thumbs'] : [];
@@ -494,7 +502,7 @@ class YouTubeChannelBlock
                 if ($saved && (! $writeAvif || is_file($avif[0]))) {
                     continue;
                 }
-                if ($left-- <= 0) {
+                if ($left-- <= 0 || microtime(true) - $start >= self::THUMBS_RUN_SECONDS) {
                     // The rest in the next run.
                     wp_schedule_single_event(time() + 60, self::THUMBS_HOOK, [$key]);
                     return;
@@ -502,8 +510,15 @@ class YouTubeChannelBlock
                 if (! $saved && ! self::download($url, $local[0])) {
                     continue;
                 }
-                // A conversion that fails once would fail for the rest too: retried on the next run.
-                if ($writeAvif && ! self::saveAvif($local[0], $avif[0])) {
+                if (! $writeAvif) {
+                    continue;
+                }
+                // A file that fails is retried on the next run. When the editor
+                // cannot write AVIF at all, or several files fail in a row, the
+                // rest would fail too, so the run stops converting.
+                $result = self::saveAvif($local[0], $avif[0]);
+                $failures = true === $result ? 0 : $failures + 1;
+                if (null === $result || $failures >= self::AVIF_MAX_FAILURES) {
                     $writeAvif = false;
                 }
             }
@@ -543,13 +558,25 @@ class YouTubeChannelBlock
         return is_numeric($quality) && (int) $quality >= 1 && (int) $quality <= 100 ? (int) $quality : self::AVIF_QUALITY;
     }
 
-    /** Writes the AVIF copy of a saved JPEG with WordPress's image editor; false when that fails. */
+    /**
+     * Writes the AVIF copy of a saved JPEG with WordPress's image editor: true
+     * when written, false when this file failed, null when the editor cannot
+     * write AVIF here at all.
+     */
     private static function saveAvif($jpeg, $path)
     {
-        // An editor that can also write AVIF (Imagick may read the JPEG but lack AVIF where GD has it).
+        // An editor that can also write AVIF (Imagick may read the JPEG but lack
+        // AVIF where GD has it). A site mapping JPEG to another format through
+        // image_editor_output_format would replace output_mime_type, so the
+        // mapping is pinned to AVIF for this call.
+        $format = function ($formats) {
+            return ['image/jpeg' => 'image/avif'] + (is_array($formats) ? $formats : []);
+        };
+        add_filter('image_editor_output_format', $format, PHP_INT_MAX);
         $editor = wp_get_image_editor($jpeg, ['output_mime_type' => 'image/avif']);
+        remove_filter('image_editor_output_format', $format, PHP_INT_MAX);
         if (is_wp_error($editor)) {
-            return false;
+            return null;
         }
         $size = $editor->get_size();
         $frame = self::frame(isset($size['width']) ? $size['width'] : 0, isset($size['height']) ? $size['height'] : 0);
@@ -571,7 +598,12 @@ class YouTubeChannelBlock
         if (is_wp_error($result) || ! is_array($result) || empty($result['path'])) {
             return false;
         }
-        if ('image/avif' !== (isset($result['mime-type']) ? $result['mime-type'] : '') || ! rename($result['path'], $path)) {
+        if ('image/avif' !== (isset($result['mime-type']) ? $result['mime-type'] : '')) {
+            // The editor wrote another format: it would for every file.
+            wp_delete_file($result['path']);
+            return null;
+        }
+        if (! rename($result['path'], $path)) {
             wp_delete_file($result['path']);
             return false;
         }
@@ -604,7 +636,9 @@ class YouTubeChannelBlock
 
     /**
      * Removes copies (JPEG and AVIF) older than THUMBS_KEEP_DAYS that the list
-     * just saved does not use. Only names localThumb() can build are touched.
+     * just saved does not use, and temporary files a run left behind (a
+     * timeout or a crash between writing and renaming) older than a day. Only
+     * names localThumb(), download() and saveAvif() can build are touched.
      */
     private static function prune(array $keep)
     {
@@ -613,12 +647,18 @@ class YouTubeChannelBlock
             return;
         }
         $limit = time() - self::THUMBS_KEEP_DAYS * DAY_IN_SECONDS;
+        $temporaryLimit = time() - DAY_IN_SECONDS;
         $dir = trailingslashit($uploads['basedir']) . self::THUMBS_DIR;
-        foreach (array_merge(glob($dir . '/*.jpg') ?: [], glob($dir . '/*.avif') ?: []) as $file) {
-            if (! preg_match('/^[A-Za-z0-9_-]{11}-[a-z]+\.(?:jpg|avif)$/D', basename($file))) {
+        foreach (array_merge(glob($dir . '/*.jpg') ?: [], glob($dir . '/*.avif') ?: [], glob($dir . '/*.tmp') ?: []) as $file) {
+            $name = basename($file);
+            if (preg_match('/^[A-Za-z0-9_-]{11}-[a-z]+\.(?:jpg|avif)$/D', $name)) {
+                $old = ! isset($keep[$name]) && filemtime($file) < $limit;
+            } elseif (preg_match('/^[A-Za-z0-9_-]{11}-[a-z]+\.(?:jpg\.[A-Za-z0-9]{8}\.tmp|[A-Za-z0-9]{8}\.tmp\.avif)$/D', $name)) {
+                $old = filemtime($file) < $temporaryLimit;
+            } else {
                 continue;
             }
-            if (! isset($keep[basename($file)]) && filemtime($file) < $limit) {
+            if ($old) {
                 wp_delete_file($file);
             }
         }
