@@ -1,7 +1,7 @@
 ## ALPS Gutenberg Blocks (adventistai.lt fork)
 
 A stripped-down fork of [adventistchurch/alps-gutenberg-blocks](https://github.com/adventistchurch/alps-gutenberg-blocks)
-for the ALPS theme on adventistai.lt. It provides three blocks:
+for the ALPS theme on adventistai.lt. It provides these blocks:
 
 - **ALPS Latest Posts** (`alps-gutenberg-blocks/latest-posts`), the only block of the original 18 that appears in the
   site's published content. It is rendered in PHP with the ALPS theme's markup and classes, so it has no front-end CSS
@@ -11,8 +11,9 @@ for the ALPS theme on adventistai.lt. It provides three blocks:
 
 - **Book Showcase** (`alps-gutenberg-blocks/book-showcase`), the PDF book cover grid with editable settings. See [Book Showcase](#book-showcase).
 - **Newspaper Posts** (`alps-gutenberg-blocks/newspaper-posts`), newest posts with medium thumbnails, optional dates and cleaned excerpts. See [Newspaper Posts](#newspaper-posts).
+- **Podcast Season** (`alps-gutenberg-blocks/podcast-season`), one season of a podcast from its RSS feed: an audio player and the episode list. See [Podcast Season](#podcast-season).
 
-All four are rendered in PHP. The editor script and stylesheet, and the YouTube block's front-end files, are built into `dist/`.
+All are rendered in PHP. The editor script and stylesheet, and the front-end files of the blocks that have them, are built into `dist/`.
 
 Version 3.0.0 removed the other 17 blocks. Content made with them still shows its saved HTML on the front end, but
 the editor can no longer edit it as those blocks. See `CHANGELOG.md`.
@@ -27,6 +28,7 @@ the editor can no longer edit it as those blocks. See `CHANGELOG.md`.
 | `src/latest-posts/block.json` | Block definition and attributes (block API 3) |
 | `src/latest-posts/class-latest-posts-block.php` | Server-side render and attribute validation |
 | `src/latest-posts/edit.js`, `editor.scss` | Block editor UI |
+| `src/podcast-season/` | Podcast Season: `block.json`, feed parsing, cache and render (`class-podcast-season-block.php`), editor (`edit.js`), front end (`view.js`, `style.scss`) |
 | `src/youtube-channel/` | YouTube Channel Videos: `block.json`, server render and API cache (`class-youtube-channel-block.php`), editor (`edit.js`), front end (`view.js`, `style.scss`) |
 | `src/index.js` | Editor entry that registers all blocks |
 | `languages/` | Lithuanian strings for the server-rendered texts (`.l10n.php`, WordPress 6.5+) |
@@ -116,3 +118,15 @@ Add **External Posts Aggregator** in the block inserter. Enter one RSS/Atom URL 
 Example sources: https://sveikas.info/feed/, https://tavoseimai.lt/feed/, https://dievozodis.lt/feed/, https://malonetau.lt/feed/.
 
 Migration: update this plugin, replace the Shortcode block with External Posts Aggregator, and copy the same feed URLs/settings. Existing [external_posts] shortcodes also work after deactivating the standalone External Posts Aggregator plugin. If the old plugin remains active, it owns its shortcode and still loads its global CSS. This block always uses its own renderer and scoped styles. Attribution: Darius, External Posts Aggregator 4.1.3, GPL-2.0-or-later.
+
+## Podcast Season
+
+Add **Podcast Season** in the block inserter, then enter the podcast's RSS feed and a season number. Spotify for Creators feeds look like `https://anchor.fm/s/…/podcast/rss` (the 5 minutės podcast: `https://anchor.fm/s/430eecd0/podcast/rss`, season 3 is "Marijos Sūnaus gyvenimas"). Episodes are the feed items whose `itunes:season` matches, ordered by `itunes:episode` (then date); trailers and items without an absolute http(s) audio enclosure are skipped. A season keeps its newest 200 episodes. New episodes appear by themselves within an hour.
+
+Settings: title (empty: the podcast's name), first or newest episode first, episodes shown before a native "Show all" (`<details>`) list (1–100), text removed from the start of titles (e.g. the series name "Marijos Sūnaus gyvenimas."; with numbers shown, a leading "1 –" is dropped too), episode numbers, descriptions (5–100 words), cover, and playing the next episode automatically.
+
+Loading:
+- One `<audio controls preload="none">` per block: no audio bytes until a visitor presses play. Episodes are links to their audio files (`rel="nofollow"`), so they also play without JavaScript; each reads "Play: number title duration" to screen readers ("Pause:" while playing). `view.js` (2 KB, deferred, footer) plays them in the block's player, marks the current one, moves to the next at the end, pauses other podcast blocks, and fills the phone's lock-screen controls (Media Session).
+- The season list is cached in a non-autoloaded option (`alps_gb_pod_*`, ~1 KB per episode at most) and refreshed by WP-Cron after an hour while the stale list is served. Only the first render of a feed and season fetches it (`wp_safe_remote_get`, 10 s, 10 MB cap); a failure is remembered for 10 minutes and an existing list is kept.
+- The cover (the season's first episode artwork, else the podcast's) is never loaded from the feed host. WP-Cron saves a 240 px square copy in `uploads/alps-podcast/` as AVIF, WebP or JPEG (whatever the server's image editor writes); until then the block shows no cover. A cover that cannot be saved (missing, over 8 MB, no image editor) is tried again after a day, not on every view. Saving a cover removes copies older than 90 days; a page still showing one makes it again.
+- The stylesheet (4 KB) and script load only where the block renders. Problems are shown to editors only.

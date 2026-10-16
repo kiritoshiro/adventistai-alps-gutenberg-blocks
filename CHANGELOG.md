@@ -3,11 +3,17 @@ A record of the changes made to `ALPS Gutenberg Blocks`.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.4.1]
+## [3.5.1]
 
 ### Changed
 - YouTube Channel Videos: thumbnails also come as AVIF (PageSpeed "Serve images in modern formats" on adventistai.lt, where a phone downloaded a 96 KB `sddefault.jpg` for the poster). YouTube offers only JPEG and WebP, so when WP-Cron saves a thumbnail it also writes an AVIF copy beside it with WordPress's image editor, at the theme's AVIF quality (`_alps_image_avif_quality`) or 60. YouTube's 4:3 `hqdefault`/`sddefault` images carry black bars that the block's 16:9 frames crop off (`object-fit: cover`); the AVIF copies leave them out, so nothing visible changes. The poster and cards become a `<picture>` with an AVIF source (same widths and sizes) and the JPEG as fallback, once every width has a copy; until then the JPEG or YouTube's address is used as before. Thumbnails already saved get their AVIF copy on the next run; sites whose WordPress cannot write AVIF keep the JPEGs only. Old AVIF copies are pruned with the JPEGs. A file that fails to convert is skipped and retried on the next run; a run stops converting when the editor cannot write AVIF at all (none available, or it writes another format) or after 3 failures in a row, and stops after about 20 seconds to continue a minute later. The editor is chosen for AVIF output even on sites that map JPEG to another format (`image_editor_output_format`). Temporary files a broken run leaves behind are removed after a day.
 - YouTube Channel Videos: `sizes` follows the block's real widths (its padding, the 1000 px limit, one, two or three cards per row) instead of `100vw`/`80vw`, and starts with `auto` on the AVIF source too, so browsers that size lazy images from the layout pick the same width for both formats. Phones fetching both `hqdefault` and `sddefault` was two elements (the poster at about 640 device pixels and the first card at about 480), not one image downloaded twice.
+
+## [3.5.0]
+
+### Added
+- Podcast Season block: one season of a podcast from its RSS feed (the `itunes:season` tag, e.g. Spotify for Creators), as one audio player and the episode list. New episodes of that season appear by themselves. Settings: feed, season, title, order (first or newest episode first), episodes shown before a native "Show all" list, text removed from the start of titles (such as the series name), episode numbers, descriptions and their length, cover, and playing the next episode automatically.
+- Built to load little: the page has one `<audio preload="none">` element, so no audio is downloaded until a visitor presses play; each episode is a link to its audio file that view.js (2 KB, deferred) plays in that player, and that still works without JavaScript; screen readers hear "Play: number title duration" ("Pause:" while playing). A season keeps its newest 200 episodes. The list is cached in a non-autoloaded option and refreshed hourly by WP-Cron while the stale list is served; only the first render of a feed and season waits for the feed (10 s timeout, 10 MB cap, `wp_safe_remote_get`). Feed covers (often 3000 px, ~2 MB) are not loaded from the feed host: WP-Cron saves a 240 px copy in `uploads/alps-podcast/` (AVIF, WebP or JPEG, whichever the server can write), and the cover appears once that copy exists. A cover that cannot be saved is retried after a day, not on every view; copies older than 90 days are removed when another is saved. The stylesheet (4 KB) and script load only where the block renders.
 
 ## [3.4.0]
 

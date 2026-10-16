@@ -15,6 +15,7 @@ require_once __DIR__ . '/latest-posts/class-latest-posts-block.php';
 require_once __DIR__ . '/youtube-channel/class-youtube-channel-block.php';
 require_once __DIR__ . '/book-showcase/class-book-showcase-block.php';
 require_once __DIR__ . '/external-posts/class-external-posts-block.php';
+require_once __DIR__ . '/podcast-season/class-podcast-season-block.php';
 
 function alps_gutenberg_blocks_init()
 {
@@ -24,7 +25,7 @@ function alps_gutenberg_blocks_init()
     load_plugin_textdomain('alps-gutenberg-blocks', false, dirname(plugin_basename($pluginFile)) . '/languages');
 
     // Editor assets. Latest Posts is styled by the ALPS theme; YouTube Channel
-    // Videos registers its own front-end files.
+    // Videos and Podcast Season register their own front-end files.
     wp_register_script(
         'alps-gb',
         plugins_url('dist/blocks.build.js', $pluginFile),
@@ -46,5 +47,6 @@ function alps_gutenberg_blocks_init()
     (new \ALPS\Gutenberg\Blocks\YouTubeChannelBlock())->init();
     (new \ALPS\Gutenberg\Blocks\BookShowcaseBlock())->init();
     (new \ALPS\Gutenberg\Blocks\ExternalPostsBlock())->init();
+    (new \ALPS\Gutenberg\Blocks\PodcastSeasonBlock())->init();
 }
 add_action('init', 'alps_gutenberg_blocks_init');
