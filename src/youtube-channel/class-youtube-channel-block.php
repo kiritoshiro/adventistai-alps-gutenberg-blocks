@@ -575,8 +575,10 @@ class YouTubeChannelBlock
         add_filter('image_editor_output_format', $format, PHP_INT_MAX);
         $editor = wp_get_image_editor($jpeg, ['output_mime_type' => 'image/avif']);
         remove_filter('image_editor_output_format', $format, PHP_INT_MAX);
+        // No editor at all stops the run; any other error (a file that will not
+        // load) skips only this file.
         if (is_wp_error($editor)) {
-            return null;
+            return 'image_no_editor' === $editor->get_error_code() ? null : false;
         }
         $size = $editor->get_size();
         $frame = self::frame(isset($size['width']) ? $size['width'] : 0, isset($size['height']) ? $size['height'] : 0);

@@ -34,7 +34,12 @@ function wp_remote_get($url, $args) {
 }
 function wp_remote_retrieve_response_code($r) { return $r['code']; }
 function wp_remote_retrieve_body($r) { return $r['body']; }
-class WP_Error {}
+class WP_Error
+{
+    public $code;
+    public function __construct($code = '') { $this->code = $code; }
+    public function get_error_code() { return $this->code; }
+}
 function is_wp_error($v) { return $v instanceof WP_Error; }
 function wp_parse_url($url, $component = -1) { return parse_url($url, $component); }
 function wp_json_encode($v) { return json_encode($v); }
@@ -63,6 +68,7 @@ function wp_delete_file($file) { @unlink($file); }
 $GLOBALS['avif'] = false;
 $GLOBALS['avifFail'] = false;
 $GLOBALS['cropFail'] = [];
+$GLOBALS['loadFail'] = [];
 $GLOBALS['saveFail'] = false;
 $GLOBALS['saveMime'] = null;
 $GLOBALS['encodeSeconds'] = 0;
@@ -81,7 +87,10 @@ function wp_get_image_editor($file, $args = []) {
         $formats = $filter($formats, $file, 'image/jpeg');
     }
     $GLOBALS['formats'][] = $formats;
-    return $GLOBALS['avifFail'] ? new WP_Error() : new FakeEditor($file);
+    if ($GLOBALS['avifFail']) {
+        return new WP_Error('image_no_editor');
+    }
+    return in_array(basename($file), $GLOBALS['loadFail'], true) ? new WP_Error('invalid_image') : new FakeEditor($file);
 }
 // The run's clock: real time plus the seconds the fake encodes took.
 eval('namespace ALPS\Gutenberg\Blocks; function microtime($asFloat = false) { return \microtime(true) + $GLOBALS["clock"]; }');
@@ -351,6 +360,14 @@ sort($avifs);
 check('one file failing mid-list skips that file only', ['v3aaaaaaaaa-hqdefault.avif', 'v3aaaaaaaaa-mqdefault.avif', 'v4aaaaaaaaa-maxresdefault.avif', 'v4aaaaaaaaa-mqdefault.avif', 'v5aaaaaaaaa-hqdefault.avif', 'v5aaaaaaaaa-mqdefault.avif'] === $avifs);
 check('the editor is chosen for AVIF output despite the site\'s JPEG mapping', 7 === count($GLOBALS['formats']) && ! array_filter($GLOBALS['formats'], function ($f) { return 'image/avif' !== $f['image/jpeg']; }) && ! $GLOBALS['filters']['image_editor_output_format']);
 $GLOBALS['cropFail'] = [];
+
+array_map('unlink', glob($thumbDir . 'v*.avif') ?: []);
+$GLOBALS['loadFail'] = ['v4aaaaaaaaa-hqdefault.jpg'];
+$block->saveThumbs($key);
+$avifs = array_map('basename', glob($thumbDir . 'v*.avif') ?: []);
+sort($avifs);
+check('a JPEG the editor cannot load skips that file only', ['v3aaaaaaaaa-hqdefault.avif', 'v3aaaaaaaaa-mqdefault.avif', 'v4aaaaaaaaa-maxresdefault.avif', 'v4aaaaaaaaa-mqdefault.avif', 'v5aaaaaaaaa-hqdefault.avif', 'v5aaaaaaaaa-mqdefault.avif'] === $avifs);
+$GLOBALS['loadFail'] = [];
 
 array_map('unlink', glob($thumbDir . 'v*.avif') ?: []);
 $GLOBALS['saveFail'] = true;
