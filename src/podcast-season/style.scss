@@ -185,6 +185,19 @@
 	clip-path: none;
 }
 
+// "Play:" / "Pause:" for screen readers; the icon shows it visually.
+.alps-pod .alps-pod__action {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
 .alps-pod__number {
 	flex: 0 0 auto;
 	min-width: 1.75em;
@@ -217,8 +230,10 @@
 .alps-pod__more {
 	margin-top: 2px;
 
+	// A list item keeps the disclosure triangle (inline-block drops it in Chrome and Firefox).
 	> summary {
-		display: inline-block;
+		display: list-item;
+		width: fit-content;
 		margin: 0.75rem 0 0.5rem 12px;
 		color: var(--alps-pod-accent-deep);
 		font-weight: 600;

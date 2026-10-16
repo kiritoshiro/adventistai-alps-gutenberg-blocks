@@ -23,9 +23,12 @@ class PodcastSeasonBlock
     const FRESH = 3600;
     const RETRY = 600;
 
-    /** Episodes kept per season, and the largest feed read (the 5 minutės feed is ~750 KB). */
+    /** Episodes kept per season (the newest), and the largest feed read (the 5 minutės feed is ~750 KB). */
     const MAX_EPISODES = 200;
     const MAX_FEED_BYTES = 10485760;
+
+    /** Episodes the editor lets a block show before "Show all". */
+    const MAX_VISIBLE = 100;
 
     /** Characters of each description kept in the cache. */
     const MAX_DESCRIPTION = 600;
@@ -39,6 +42,12 @@ class PodcastSeasonBlock
     const COVER_SIZE = 240;
     const COVER_MAX_BYTES = 8388608;
     const COVER_TYPES = ['image/avif' => 'avif', 'image/webp' => 'webp', 'image/jpeg' => 'jpg'];
+
+    /** A cover that could not be saved is not tried again for a day (no image editor, 404, too large). */
+    const COVER_RETRY = 86400;
+
+    /** Copies older than this are removed when another cover is saved; a page still showing one makes it again. */
+    const COVER_KEEP_DAYS = 90;
 
     const ITUNES = 'http://www.itunes.com/dtds/podcast-1.0.dtd';
 
@@ -79,17 +88,24 @@ class PodcastSeasonBlock
         return $season >= 1 && $season <= 999 ? $season : 0;
     }
 
-    /** Seconds from itunes:duration ("1:02:03", "06:40" or "400"); 0 when unknown. */
+    /** Seconds from itunes:duration ("1:02:03", "06:40", "400" or "400.5"); 0 when unknown. */
     public static function seconds($value)
     {
         $value = trim((string) $value);
-        if (preg_match('/^\d+$/D', $value)) {
-            return (int) $value;
+        if (preg_match('/^\d+(?:\.\d+)?$/D', $value)) {
+            return (int) round((float) $value);
         }
-        if (! preg_match('/^(?:(\d+):)?(\d{1,2}):(\d{1,2})$/D', $value, $m)) {
+        if (! preg_match('/^(?:(\d+):)?(\d{1,2}):(\d{1,2})(?:\.\d+)?$/D', $value, $m)) {
             return 0;
         }
         return (int) $m[1] * 3600 + (int) $m[2] * 60 + (int) $m[3];
+    }
+
+    /** An absolute http(s) URL from the feed, or ''. esc_url_raw() alone would turn "ep.mp3" into "http://ep.mp3". */
+    public static function feedLink($value)
+    {
+        $url = trim((string) $value);
+        return preg_match('#^https?://#i', $url) ? esc_url_raw($url, ['https', 'http']) : '';
     }
 
     /** "1:02:03" or "6:40"; '' when unknown. */
@@ -126,7 +142,8 @@ class PodcastSeasonBlock
             $label = (string) preg_replace('/^' . preg_quote($prefix, '/') . '[\s.:,;|·–—-]*/iu', '', $label);
         }
         if (null !== $number) {
-            $label = (string) preg_replace('/^' . (int) $number . '\s*[.:)–—-]\s*/u', '', $label);
+            // The separator must be followed by a space, so "3:16 Jono evangelija" keeps its verse.
+            $label = (string) preg_replace('/^' . (int) $number . '\s*[.:)–—-]\s+/u', '', $label);
         }
         $label = trim($label);
         return '' !== $label ? $label : trim((string) $title);
@@ -153,7 +170,12 @@ class PodcastSeasonBlock
             /* translators: %d: HTTP status code */
             throw new \RuntimeException(sprintf(__('HTTP error %d', 'alps-gutenberg-blocks'), $code)); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- caught in refresh(); shown only through notice(), which escapes.
         }
-        return self::parse((string) wp_remote_retrieve_body($response), $season);
+        $body = (string) wp_remote_retrieve_body($response);
+        if (strlen($body) >= self::MAX_FEED_BYTES) {
+            // The response was cut at the limit, so it cannot be parsed.
+            throw new \RuntimeException(__('the feed is larger than 10 MB', 'alps-gutenberg-blocks')); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- caught in refresh(); shown only through notice(), which escapes.
+        }
+        return self::parse($body, $season);
     }
 
     /**
@@ -174,7 +196,10 @@ class PodcastSeasonBlock
         }
         $channel = $rss->channel;
         $itunes = $channel->children(self::ITUNES);
-        $cover = isset($itunes->image) ? (string) $itunes->image->attributes()->href : '';
+        $cover = isset($itunes->image) ? self::feedLink($itunes->image->attributes()->href) : '';
+        if ('' === $cover && isset($channel->image->url)) {
+            $cover = self::feedLink($channel->image->url);
+        }
 
         $episodes = [];
         foreach ($channel->item as $item) {
@@ -182,15 +207,16 @@ class PodcastSeasonBlock
             if ((int) $tags->season !== (int) $season || 'trailer' === strtolower(trim((string) $tags->episodeType))) {
                 continue;
             }
-            $audio = isset($item->enclosure) ? esc_url_raw(trim((string) $item->enclosure['url']), ['https', 'http']) : '';
+            $audio = isset($item->enclosure) ? self::feedLink($item->enclosure['url']) : '';
             if ('' === $audio) {
                 continue;
             }
             $time = strtotime((string) $item->pubDate);
             $number = trim((string) $tags->episode);
             $description = self::plainText((string) $item->description);
-            if (function_exists('mb_substr') && mb_strlen($description) > self::MAX_DESCRIPTION) {
-                $description = rtrim(mb_substr($description, 0, self::MAX_DESCRIPTION)) . '…';
+            // Cut by characters with PCRE, which needs no mbstring.
+            if (preg_match('/^.{' . self::MAX_DESCRIPTION . '}(?=.)/su', $description, $cut)) {
+                $description = rtrim($cut[0]) . '…';
             }
             $episodes[] = [
                 'title'       => self::plainText((string) $item->title),
@@ -200,7 +226,7 @@ class PodcastSeasonBlock
                 'seconds'     => self::seconds((string) $tags->duration),
                 'published'   => $time ? gmdate('c', $time) : '',
                 'description' => $description,
-                'image'       => isset($tags->image) ? esc_url_raw((string) $tags->image->attributes()->href, ['https', 'http']) : '',
+                'image'       => isset($tags->image) ? self::feedLink($tags->image->attributes()->href) : '',
             ];
         }
         usort($episodes, function ($a, $b) {
@@ -208,11 +234,12 @@ class PodcastSeasonBlock
             $nb = null === $b['number'] ? PHP_INT_MAX : $b['number'];
             return $na === $nb ? strcmp($a['published'], $b['published']) : ($na < $nb ? -1 : 1);
         });
-        $episodes = array_slice($episodes, 0, self::MAX_EPISODES);
         // The season's own artwork (the first episode's) before the podcast's.
         if ($episodes && '' !== $episodes[0]['image']) {
             $cover = $episodes[0]['image'];
         }
+        // A very long season keeps its newest episodes, so new ones still appear.
+        $episodes = array_slice($episodes, -self::MAX_EPISODES);
         foreach ($episodes as &$episode) {
             unset($episode['image']);
         }
@@ -220,7 +247,7 @@ class PodcastSeasonBlock
 
         return [
             'title'    => self::plainText((string) $channel->title),
-            'cover'    => esc_url_raw($cover, ['https', 'http']),
+            'cover'    => $cover,
             'episodes' => $episodes,
         ];
     }
@@ -284,10 +311,27 @@ class PodcastSeasonBlock
         }
         update_option($key, $data, false);
         delete_transient($key . '_error');
-        if ('' !== $data['cover'] && ! self::coverUrl($data['cover']) && ! wp_next_scheduled(self::COVER_HOOK, [$key])) {
-            wp_schedule_single_event(time(), self::COVER_HOOK, [$key]);
-        }
+        self::scheduleCover($key, $data['cover']);
         return $data;
+    }
+
+    /** Where a cover that could not be saved is remembered. */
+    private static function coverErrorKey($source)
+    {
+        return 'alps_gb_pod_cover_' . md5((string) $source);
+    }
+
+    /**
+     * Asks WP-Cron for a resized copy of a cover that has none, unless one is
+     * queued or the last try failed less than COVER_RETRY ago.
+     */
+    private static function scheduleCover($key, $source)
+    {
+        if ('' === (string) $source || '' !== self::coverUrl($source) || false !== get_transient(self::coverErrorKey($source))
+            || wp_next_scheduled(self::COVER_HOOK, [$key])) {
+            return;
+        }
+        wp_schedule_single_event(time(), self::COVER_HOOK, [$key]);
     }
 
     /** [directory, base URL, file name without extension] for a cover, or null without uploads. */
@@ -333,22 +377,35 @@ class PodcastSeasonBlock
         $data = get_option($key);
         $source = is_array($data) && isset($data['cover']) && is_string($data['cover']) ? $data['cover'] : '';
         $place = '' !== $source ? self::coverPlace($source) : null;
-        if (! $place || '' !== self::coverUrl($source)) {
+        if (! $place || '' !== self::coverUrl($source) || false !== get_transient(self::coverErrorKey($source))) {
             return;
         }
+        if (! self::copyCover($source, $place)) {
+            // Not retried on every page view: a cover that is missing, too large
+            // or unreadable here is tried again the next day.
+            set_transient(self::coverErrorKey($source), 1, self::COVER_RETRY);
+            return;
+        }
+        self::pruneCovers($place);
+    }
+
+    /** Downloads, resizes and saves one cover; false when no copy was written. */
+    private static function copyCover($source, array $place)
+    {
         $response = wp_safe_remote_get($source, ['timeout' => 15, 'redirection' => 3, 'limit_response_size' => self::COVER_MAX_BYTES]);
         if (is_wp_error($response) || 200 !== (int) wp_remote_retrieve_response_code($response)) {
-            return;
+            return false;
         }
         $body = (string) wp_remote_retrieve_body($response);
         $info = strlen($body) >= 100 && strlen($body) < self::COVER_MAX_BYTES && function_exists('getimagesizefromstring') ? @getimagesizefromstring($body) : false;
         if (! is_array($info) || ! in_array($info[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP], true) || ! wp_mkdir_p($place[0])) {
-            return;
+            return false;
         }
         $original = $place[0] . '/' . $place[2] . '.' . wp_generate_password(8, false) . '.tmp';
         if (false === file_put_contents($original, $body)) { // Fixed directory, generated name.
-            return;
+            return false;
         }
+        $written = false;
         $editor = wp_get_image_editor($original);
         if (! is_wp_error($editor) && ! is_wp_error($editor->resize(self::COVER_SIZE, self::COVER_SIZE, true))) {
             foreach (self::COVER_TYPES as $mime => $extension) {
@@ -359,8 +416,9 @@ class PodcastSeasonBlock
                         break;
                     }
                     // A site's image_editor_output_format filter may have chosen another format.
-                    $written = strtolower(pathinfo($saved['path'], PATHINFO_EXTENSION));
-                    if (! in_array($written, self::COVER_TYPES, true) || ! rename($saved['path'], $place[0] . '/' . $place[2] . '.' . $written)) {
+                    $extension = strtolower(pathinfo($saved['path'], PATHINFO_EXTENSION));
+                    $written = in_array($extension, self::COVER_TYPES, true) && rename($saved['path'], $place[0] . '/' . $place[2] . '.' . $extension);
+                    if (! $written) {
                         wp_delete_file($saved['path']);
                     }
                     break;
@@ -368,6 +426,22 @@ class PodcastSeasonBlock
             }
         }
         wp_delete_file($original);
+        return $written;
+    }
+
+    /**
+     * Removes copies (and leftovers of interrupted runs) older than
+     * COVER_KEEP_DAYS, except the cover just saved.
+     */
+    private static function pruneCovers(array $place)
+    {
+        $limit = time() - self::COVER_KEEP_DAYS * DAY_IN_SECONDS;
+        foreach (glob($place[0] . '/*') ?: [] as $file) {
+            $name = basename($file);
+            if (0 !== strpos($name, $place[2] . '.') && preg_match('/^[a-f0-9]{32}-\d+\./', $name) && filemtime($file) < $limit) {
+                wp_delete_file($file);
+            }
+        }
     }
 
     /** A message for people who can edit the page; visitors get nothing. */
@@ -392,15 +466,15 @@ class PodcastSeasonBlock
         if ($options['words'] > 0 && '' !== $episode['description']) {
             $description = '<p class="alps-pod__description">' . esc_html(wp_trim_words($episode['description'], $options['words'], '…')) . '</p>';
         }
+        // The link reads "Play: 1 Title 6:40"; view.js says "Pause:" on the episode that is playing.
         return sprintf(
-            '<li class="alps-pod__item"><a class="alps-pod__episode%1$s" href="%2$s"%3$s rel="nofollow" data-index="%4$d" data-title="%5$s" aria-label="%6$s"%7$s><span class="alps-pod__icon" aria-hidden="true"></span>%8$s<span class="alps-pod__name">%9$s</span>%10$s</a>%11$s</li>',
+            '<li class="alps-pod__item"><a class="alps-pod__episode%1$s" href="%2$s"%3$s rel="nofollow" data-index="%4$d" data-title="%5$s"%7$s><span class="alps-pod__icon" aria-hidden="true"></span><span class="alps-pod__action">%6$s</span>%8$s<span class="alps-pod__name">%9$s</span>%10$s</a>%11$s</li>',
             $active ? ' is-active' : '',
             esc_url($episode['audio']),
             '' !== $episode['type'] ? ' type="' . esc_attr($episode['type']) . '"' : '',
             (int) $index,
             esc_attr($label),
-            /* translators: %s: episode title */
-            esc_attr(sprintf(__('Play: %s', 'alps-gutenberg-blocks'), $label)),
+            esc_html__('Play:', 'alps-gutenberg-blocks'),
             $active ? ' aria-current="true"' : '',
             null !== $number ? '<span class="alps-pod__number">' . (int) $number . '</span>' : '',
             esc_html($label),
@@ -440,7 +514,7 @@ class PodcastSeasonBlock
         if (isset($attributes['order']) && 'desc' === $attributes['order']) {
             $episodes = array_reverse($episodes);
         }
-        $visible = isset($attributes['visible']) && is_numeric($attributes['visible']) ? max(1, min(self::MAX_EPISODES, (int) $attributes['visible'])) : 10;
+        $visible = isset($attributes['visible']) && is_numeric($attributes['visible']) ? max(1, min(self::MAX_VISIBLE, (int) $attributes['visible'])) : 10;
         $words = isset($attributes['descriptionWords']) && is_numeric($attributes['descriptionWords']) ? max(5, min(100, (int) $attributes['descriptionWords'])) : 30;
         $options = [
             'prefix'  => isset($attributes['removePrefix']) && is_string($attributes['removePrefix']) ? $attributes['removePrefix'] : '',
@@ -454,11 +528,8 @@ class PodcastSeasonBlock
             $coverUrl = self::coverUrl($data['cover']);
             if ('' !== $coverUrl) {
                 $cover = '<img class="alps-pod__cover" src="' . esc_url($coverUrl) . '" width="' . self::COVER_SIZE . '" height="' . self::COVER_SIZE . '" alt="" loading="lazy" decoding="async">';
-            } elseif ('' !== $data['cover']) {
-                $key = self::cacheKey($feedUrl, $season);
-                if (! wp_next_scheduled(self::COVER_HOOK, [$key])) {
-                    wp_schedule_single_event(time(), self::COVER_HOOK, [$key]);
-                }
+            } else {
+                self::scheduleCover(self::cacheKey($feedUrl, $season), $data['cover']);
             }
         }
 
@@ -484,10 +555,10 @@ class PodcastSeasonBlock
         wp_enqueue_script(self::HANDLE);
 
         return sprintf(
-            '<section %1$s data-alps-pod%2$s>'
+            '<section %1$s data-alps-pod%2$s data-play="%12$s" data-pause="%13$s">'
             . '<header class="alps-pod__header">%3$s<div class="alps-pod__heading">%4$s<p class="alps-pod__meta">%5$s</p></div></header>'
             . '<div class="alps-pod__player"><p class="alps-pod__now">%6$s</p><audio class="alps-pod__audio" controls preload="none" src="%7$s" aria-label="%8$s"></audio></div>'
-            . '<ol class="alps-pod__list" aria-label="%9$s">%10$s</ol>%11$s'
+            . '<ol class="alps-pod__list" role="list" aria-label="%9$s">%10$s</ol>%11$s'
             . '</section>',
             get_block_wrapper_attributes(['class' => 'alps-pod']),
             ! isset($attributes['autoNext']) || ! empty($attributes['autoNext']) ? ' data-auto-next' : '',
@@ -501,8 +572,10 @@ class PodcastSeasonBlock
             $items,
             '' !== $more
                 /* translators: %d: number of episodes */
-                ? '<details class="alps-pod__more"><summary>' . esc_html(sprintf(__('Show all episodes (%d)', 'alps-gutenberg-blocks'), count($episodes))) . '</summary><ol class="alps-pod__list" start="' . ($visible + 1) . '">' . $more . '</ol></details>'
-                : ''
+                ? '<details class="alps-pod__more"><summary>' . esc_html(sprintf(__('Show all episodes (%d)', 'alps-gutenberg-blocks'), count($episodes))) . '</summary><ol class="alps-pod__list" role="list">' . $more . '</ol></details>'
+                : '',
+            esc_attr__('Play:', 'alps-gutenberg-blocks'),
+            esc_attr__('Pause:', 'alps-gutenberg-blocks')
         );
     }
 }

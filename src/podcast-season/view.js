@@ -18,6 +18,16 @@ function setup( section ) {
 	const heading = section.querySelector( '.alps-pod__title' );
 	const cover = section.querySelector( '.alps-pod__cover' );
 
+	// The hidden "Play:" before each title says "Pause:" on the episode that is playing.
+	function announce( playing ) {
+		episodes.forEach( ( link, index ) => {
+			const action = link.querySelector( '.alps-pod__action' );
+			if ( action ) {
+				action.textContent = ( playing && index === current ? section.dataset.pause : section.dataset.play ) || action.textContent;
+			}
+		} );
+	}
+
 	function describe() {
 		if ( ! ( 'mediaSession' in navigator ) || typeof window.MediaMetadata !== 'function' ) {
 			return;
@@ -36,6 +46,7 @@ function setup( section ) {
 		if ( ! link ) {
 			return;
 		}
+		announce( false );
 		episodes[ current ].classList.remove( 'is-active' );
 		episodes[ current ].removeAttribute( 'aria-current' );
 		link.classList.add( 'is-active' );
@@ -78,11 +89,16 @@ function setup( section ) {
 		// One podcast at a time on the page.
 		players.forEach( ( other ) => other !== audio && other.pause() );
 		section.classList.add( 'is-playing' );
+		announce( true );
 		describe();
 	} );
-	audio.addEventListener( 'pause', () => section.classList.remove( 'is-playing' ) );
+	audio.addEventListener( 'pause', () => {
+		section.classList.remove( 'is-playing' );
+		announce( false );
+	} );
 	audio.addEventListener( 'ended', () => {
 		section.classList.remove( 'is-playing' );
+		announce( false );
 		if ( 'autoNext' in section.dataset && current < episodes.length - 1 ) {
 			select( current + 1, true );
 		}

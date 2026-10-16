@@ -31,8 +31,10 @@ export default function Edit( { attributes, setAttributes } ) {
 			type="number"
 			min={ 1 }
 			max={ 999 }
-			value={ season }
-			onChange={ ( value ) => setAttributes( { season: Math.max( 1, Math.min( 999, parseInt( value, 10 ) || 1 ) ) } ) }
+			value={ season > 0 ? season : '' }
+			// Not clamped while typing: emptying the field and typing 3 gives 3, not 13.
+			// 0 (empty) shows the server's "enter a season" notice.
+			onChange={ ( value ) => setAttributes( { season: Math.max( 0, Math.min( 999, parseInt( value, 10 ) || 0 ) ) } ) }
 		/>
 	);
 	const ready = isFeedUrl( feedUrl );

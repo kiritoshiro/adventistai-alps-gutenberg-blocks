@@ -37,7 +37,14 @@ function wp_parse_url($url, $component = -1) { return parse_url($url, $component
 function wp_json_encode($v) { return json_encode($v); }
 function wp_strip_all_tags($s) { return trim(strip_tags((string) $s)); }
 function sanitize_mime_type($s) { return preg_replace('/[^-+*.a-zA-Z0-9\/]/', '', $s); }
-function esc_url_raw($s, $protocols = null) { $s = trim((string) $s); return preg_match('#^https?://[^\s"<>]+$#i', $s) ? $s : ''; }
+function esc_url_raw($s, $protocols = null) {
+    $s = trim((string) $s);
+    if ('' === $s) { return ''; }
+    // Like core's esc_url(): an address without a scheme gets http:// in front.
+    if (false === strpos($s, ':') && ! in_array($s[0], ['/', '#', '?'], true) && ! preg_match('/^[a-z0-9-]+?\.php/i', $s)) { $s = 'http://' . $s; }
+    return preg_match('#^https?://[^\s"<>]+$#i', $s) ? $s : '';
+}
+define('DAY_IN_SECONDS', 86400);
 function __($s, $d) { return $s; }
 function esc_html($s) { return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8'); }
 function esc_attr($s) { return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8'); }
@@ -130,10 +137,12 @@ check('feed address', FEED === Block::feedUrl(' ' . FEED . ' '));
 check('non-http addresses rejected', '' === Block::feedUrl('javascript:alert(1)') && '' === Block::feedUrl('ftp://x.example/rss') && '' === Block::feedUrl(['x']) && '' === Block::feedUrl(''));
 check('season bounds', 3 === Block::season('3') && 0 === Block::season(0) && 0 === Block::season(1000) && 0 === Block::season('abc') && 0 === Block::season(null));
 check('durations', 400 === Block::seconds('00:06:40') && 400 === Block::seconds('6:40') && 400 === Block::seconds('400') && 3723 === Block::seconds('1:02:03') && 0 === Block::seconds('soon'));
+check('decimal durations', 401 === Block::seconds('400.5') && 400 === Block::seconds('6:40.2'));
 check('duration labels', '6:40' === Block::duration(400) && '1:02:03' === Block::duration(3723) && '' === Block::duration(0));
 check('labels: prefix and number removed', 'Dievas su mumis (santrauka)' === Block::label('Marijos Sūnaus gyvenimas. 1 – Dievas su mumis (santrauka)', 'Marijos Sūnaus gyvenimas', 1));
 check('labels: prefix is case-insensitive', '1 – Dievas su mumis' === Block::label('MARIJOS SŪNAUS GYVENIMAS. 1 – Dievas su mumis', 'Marijos Sūnaus gyvenimas.', null));
 check('labels: number kept when numbers are hidden or differ', '12 apaštalų' === Block::label('12 apaštalų', '', 1) && '1 – Dievas' === Block::label('1 – Dievas', '', null));
+check('labels: a verse reference keeps its number', '3:16 Jono evangelija' === Block::label('3:16 Jono evangelija', '', 3) && '151. Mesijas' === Block::label('151. Mesijas', '', 149));
 check('labels: never empty', 'Marijos Sūnaus gyvenimas' === Block::label('Marijos Sūnaus gyvenimas', 'Marijos Sūnaus gyvenimas', null));
 check('labels: prefix with regex characters is literal', 'Tekstas' === Block::label('(1/2) Tekstas', '(1/2)', null));
 
@@ -163,10 +172,34 @@ foreach (['', 'not xml', '<html><body>Hi</body></html>'] as $bad) {
     check('not a feed: ' . ('' === $bad ? '(empty)' : $bad), $thrown);
 }
 
+$odd = Block::parse(feed([
+    episode('Schemeless', 8, 1, 'Thu, 15 Oct 2026 14:00:00 GMT'),
+    episode('Duplicate tags', 8, 2, 'Thu, 22 Oct 2026 14:00:00 GMT', '<itunes:episode>99</itunes:episode><itunes:season>1</itunes:season>'),
+]), 8);
+check('first of duplicate tags wins', [1, 2] === array_column($odd['episodes'], 'number'));
+$schemeless = Block::parse(feed([str_replace('https://anchor.fm/s/430eecd0/podcast/play/1/https%3A%2F%2Fd3ctxlq1ktw2nl.cloudfront.net%2F', '', episode('Relative', 9, 1, 'Thu, 15 Oct 2026 14:00:00 GMT'))]), 9);
+check('an enclosure without a scheme is skipped, not turned into http://e9-1.m4a', [] === $schemeless['episodes']);
+$many = [];
+for ($n = 1; $n <= Block::MAX_EPISODES + 5; ++$n) {
+    $many[] = episode("E$n", 10, $n, gmdate('D, d M Y H:i:s', 1700000000 + $n * 86400) . ' GMT');
+}
+$long = Block::parse(feed($many), 10);
+check('a season over the cap keeps its newest episodes', Block::MAX_EPISODES === count($long['episodes']) && 6 === $long['episodes'][0]['number'] && Block::MAX_EPISODES + 5 === end($long['episodes'])['number']);
+$plain = str_replace('<itunes:image href="https://cdn.example/podcast.jpg"/>', '<image><url>https://cdn.example/rss-image.png</url></image>', feed([episode('A', 11, 1, 'Thu, 15 Oct 2026 14:00:00 GMT')]));
+check('RSS <image> when there is no itunes:image', 'https://cdn.example/rss-image.png' === Block::parse($plain, 11)['cover']);
+$latin = mb_convert_encoding(str_replace('encoding="UTF-8"', 'encoding="ISO-8859-13"', feed([episode('Šventykla ąžuolas', 12, 1, 'Thu, 15 Oct 2026 14:00:00 GMT')])), 'ISO-8859-13', 'UTF-8');
+check('a feed in another encoding is read as UTF-8', 'Šventykla ąžuolas' === Block::parse($latin, 12)['episodes'][0]['title']);
+$laughs = '<!DOCTYPE rss [<!ENTITY a "aaaaaaaaaa">' . implode('', array_map(function ($i) { return '<!ENTITY a' . $i . ' "' . str_repeat('&a' . ($i > 1 ? $i - 1 : '') . ';', 10) . '">'; }, range(1, 9))) . ']>';
+$bomb = str_replace('<![CDATA[Bomb]]>', '&a9;', feed([episode('Bomb', 13, 1, 'Thu, 15 Oct 2026 14:00:00 GMT')], $laughs));
+$memory = memory_get_peak_usage();
+$result = null;
+try { $result = Block::parse($bomb, 13); } catch (RuntimeException $e) { $result = 'rejected'; }
+check('entity expansion (billion laughs) is not amplified', memory_get_peak_usage() - $memory < 50000000 && ('rejected' === $result || strlen((string) json_encode($result)) < 1000000));
+
 // Init.
 $block = new Block();
 $block->init();
-check('block registered from block.json with a render callback', substr($GLOBALS['blockType'][0], -strlen('podcast-season/block.json')) === str_replace('\\', '/', substr($GLOBALS['blockType'][0], -strlen('podcast-season/block.json'))) && is_callable($GLOBALS['blockType'][1]['render_callback']));
+check('block registered from block.json with a render callback', 'podcast-season/block.json' === substr(str_replace('\\', '/', $GLOBALS['blockType'][0]), -strlen('podcast-season/block.json')) && is_file($GLOBALS['blockType'][0]) && is_callable($GLOBALS['blockType'][1]['render_callback']));
 check('front-end script is deferred in the footer', ['in_footer' => true, 'strategy' => 'defer'] === end($GLOBALS['registered'])[4]);
 check('cron hooks', isset($GLOBALS['actions'][Block::REFRESH_HOOK], $GLOBALS['actions'][Block::COVER_HOOK]) && 2 === $GLOBALS['actions'][Block::REFRESH_HOOK][1]);
 
@@ -187,10 +220,12 @@ check('one audio player that downloads nothing until play', 1 === substr_count($
 check('player starts on episode 1', preg_match('#<audio[^>]+src="https://anchor\.fm/[^"]+e3-1\.m4a"#', $html) && false !== strpos($html, '<p class="alps-pod__now">Dievas su mumis (santrauka)</p>'));
 check('episodes are links to their audio (work without JavaScript), not followed by bots', 3 === substr_count($html, 'class="alps-pod__episode') && 3 === substr_count($html, 'rel="nofollow"'));
 check('first episode active', 1 === substr_count($html, 'aria-current="true"') && false !== strpos($html, 'alps-pod__episode is-active" href="https://anchor.fm/s/430eecd0/podcast/play/1/https%3A%2F%2Fd3ctxlq1ktw2nl.cloudfront.net%2Fe3-1.m4a"'));
+check('links read "Play: number title duration" (no aria-label hiding them)', false === strpos($html, 'aria-label="Play') && 3 === substr_count($html, '<span class="alps-pod__action">Play:</span>') && false !== strpos($html, 'data-play="Play:" data-pause="Pause:"'));
+check('lists keep list semantics without bullets', 2 === substr_count($html, '<ol class="alps-pod__list" role="list"'));
 check('numbers, labels and durations', false !== strpos($html, '<span class="alps-pod__number">2</span><span class="alps-pod__name">Išrinktoji tauta</span><span class="alps-pod__duration">6:40</span>'));
 check('heading and season line', false !== strpos($html, '<h2 class="alps-pod__title">Marijos Sūnaus gyvenimas</h2>') && false !== strpos($html, 'Season 3 · Episodes: 3'));
-check('episodes past "visible" in a native <details>', 1 === substr_count($html, '<details class="alps-pod__more">') && false !== strpos($html, 'Show all episodes (3)</summary><ol class="alps-pod__list" start="3">') && 1 === preg_match('#<details.*Laikų pilnatvė.*</details>#s', $html));
-check('autoplay of the next episode on by default', false !== strpos($html, 'data-alps-pod data-auto-next>'));
+check('episodes past "visible" in a native <details>', 1 === substr_count($html, '<details class="alps-pod__more">') && false !== strpos($html, 'Show all episodes (3)</summary><ol class="alps-pod__list" role="list">') && 1 === preg_match('#<details.*Laikų pilnatvė.*</details>#s', $html));
+check('autoplay of the next episode on by default', false !== strpos($html, 'data-alps-pod data-auto-next data-play='));
 check('no descriptions by default', false === strpos($html, 'alps-pod__description'));
 check('front-end files enqueued where the block renders', ['style:alps-gb-podcast-season', 'script:alps-gb-podcast-season'] === $GLOBALS['enqueued']);
 check('no cover until the resized copy exists; the copy is scheduled', false === strpos($html, '<img') && 1 === count(array_filter($GLOBALS['scheduled'], function ($e) { return Block::COVER_HOOK === $e[0]; })));
@@ -244,6 +279,17 @@ $GLOBALS['editor'] = false;
 check('empty season: nothing for visitors', '' === $block->render(['feedUrl' => 'https://fourth.example/rss', 'season' => 9]));
 check('invalid cron arguments do nothing', isset($block->refresh('javascript:x', 3)['error']) && isset($block->refresh(FEED, 'x')['error']));
 
+$big = str_repeat(' ', Block::MAX_FEED_BYTES);
+$GLOBALS['feed'] = function ($url) use (&$big) { return ['code' => 200, 'body' => $big]; };
+$GLOBALS['editor'] = true;
+check('a feed cut at the size limit says so', false !== strpos($block->render(['feedUrl' => 'https://huge.example/rss', 'season' => 3]), 'the feed is larger than 10 MB'));
+$GLOBALS['editor'] = false;
+unset($big);
+$GLOBALS['feed'] = function ($url) use (&$xml) { return ['code' => 200, 'body' => $xml]; };
+$GLOBALS['scheduled'] = [];
+$block->refresh(FEED, 3);
+check('a refresh asks for the cover copy once', [[Block::COVER_HOOK, [$key]]] === array_values(array_filter($GLOBALS['scheduled'], function ($e) { return Block::COVER_HOOK === $e[0]; })));
+
 // Cover: resized once into uploads, then used.
 $GLOBALS['feed'] = function ($url) {
     $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
@@ -271,6 +317,30 @@ unlink(COVER_BASE . "/alps-podcast/$name.avif");
 $GLOBALS['feed'] = function ($url) { return ['code' => 200, 'body' => '<html>' . str_repeat('x', 200) . '</html>']; };
 $block->saveCover($key);
 check('a non-image cover is not saved', [] === glob(COVER_BASE . '/alps-podcast/*'));
+$coverError = 'alps_gb_pod_cover_' . md5('https://cdn.example/season3.jpg');
+check('a failed cover is remembered for a day', isset($GLOBALS['transients'][$coverError]));
+$GLOBALS['calls'] = [];
+$GLOBALS['scheduled'] = [];
+$block->render($attributes);
+$block->refresh(FEED, 3);
+$GLOBALS['calls'] = [];
+$block->saveCover($key);
+check('a failed cover is not scheduled or downloaded again on every view', [] === array_filter($GLOBALS['scheduled'], function ($e) { return Block::COVER_HOOK === $e[0]; }) && [] === $GLOBALS['calls']);
+unset($GLOBALS['transients'][$coverError]);
+$GLOBALS['format'] = '';
+$GLOBALS['feed'] = function ($url) {
+    $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+    return ['code' => 200, 'body' => $png . str_repeat("\0", 200)];
+};
+$old = COVER_BASE . '/alps-podcast/' . md5('old') . '-240.webp';
+$recent = COVER_BASE . '/alps-podcast/' . md5('recent') . '-240.webp';
+$stray = COVER_BASE . '/alps-podcast/notes.txt';
+foreach ([$old, $recent, $stray] as $file) { file_put_contents($file, 'x'); }
+touch($old, time() - 100 * DAY_IN_SECONDS);
+touch($stray, time() - 100 * DAY_IN_SECONDS);
+$block->saveCover($key);
+check('saving a cover removes copies unused for 90 days, keeps recent ones and other files', ! is_file($old) && is_file($recent) && is_file($stray) && is_file(COVER_BASE . "/alps-podcast/$name.webp"));
+foreach (glob(COVER_BASE . '/alps-podcast/*') as $file) { unlink($file); }
 @rmdir(COVER_BASE . '/alps-podcast');
 @rmdir(COVER_BASE);
 

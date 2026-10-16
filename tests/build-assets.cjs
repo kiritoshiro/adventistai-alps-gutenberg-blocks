@@ -113,7 +113,7 @@ assert.equal(podcastUpdates.length, 0, 'Opening Podcast Season preserves setting
 assert(!podcastNodes.some(n => n.props?.block === podcast.name), 'No server preview before a feed address is entered');
 podcastNodes = treeNodes(registered.get(podcast.name).edit({ attributes: { ...podcastDefaults, feedUrl: 'https://anchor.fm/s/430eecd0/podcast/rss', season: 3, showDescription: true }, setAttributes: v => podcastUpdates.push(v) }));
 for (const [label, key, value, expected] of [
-  ['Podcast RSS feed', 'feedUrl', 'https://other.example/rss'], ['Season', 'season', '4', 4], ['Season', 'season', '0', 1], ['Season', 'season', '5000', 999],
+  ['Podcast RSS feed', 'feedUrl', 'https://other.example/rss'], ['Season', 'season', '4', 4], ['Season', 'season', '', 0], ['Season', 'season', '5000', 999], ['Season', 'season', '-3', 0],
   ['Title', 'title', 'Marijos Sūnaus gyvenimas'], ['Order', 'order', 'desc'], ['Episodes shown before “Show all”', 'visible', 20],
   ['Remove from the start of titles', 'removePrefix', 'Marijos Sūnaus gyvenimas.'], ['Show episode numbers', 'showNumbers', false],
   ['Show descriptions', 'showDescription', false], ['Description length (words)', 'descriptionWords', 40], ['Show cover', 'showCover', false],
@@ -132,7 +132,7 @@ assert(!/fetch\(|XMLHttpRequest|jQuery|import\(|\.load\(\)/.test(podView), 'The 
 assert(!/@import|url\(|fonts\.google/.test(podStyle) && podStyle.includes('.alps-pod') && !podStyle.includes('$'), 'Podcast CSS is compiled and loads no remote files');
 
 // Drive the real view script: a click plays that episode in the one player; the end moves on.
-function podcastPage(autoNext) {
+function podcastSection(autoNext) {
   const handlers = {};
   const audio = {
     src: 'https://cdn.example/e1.m4a', paused: true, plays: 0, listeners: {},
@@ -142,22 +142,24 @@ function podcastPage(autoNext) {
   };
   const classes = () => { const set = new Set(); return { add: c => set.add(c), remove: c => set.delete(c), contains: c => set.has(c) }; };
   const details = { open: false };
-  const links = [1, 2, 3].map(n => ({
-    href: `https://cdn.example/e${n}.m4a`, dataset: { title: `Episode ${n}` }, classList: classes(), attrs: {},
-    setAttribute(k, v) { this.attrs[k] = v; }, removeAttribute(k) { delete this.attrs[k]; },
-    closest(selector) { return selector === 'details' ? (n === 3 ? details : null) : this; },
-  }));
+  const links = [1, 2, 3].map(n => {
+    const action = { textContent: 'Play:' };
+    return {
+      href: `https://cdn.example/e${n}.m4a`, dataset: { title: `Episode ${n}` }, classList: classes(), attrs: {}, action,
+      setAttribute(k, v) { this.attrs[k] = v; }, removeAttribute(k) { delete this.attrs[k]; },
+      closest(selector) { return selector === 'details' ? (n === 3 ? details : null) : this; },
+      querySelector: selector => (selector === '.alps-pod__action' ? action : null),
+    };
+  });
   links[0].classList.add('is-active');
   const now = { textContent: 'Episode 1' };
-  const parts = { '.alps-pod__audio': audio, '.alps-pod__now': now, '.alps-pod__title': { textContent: 'Series' } };
+  const parts = { '.alps-pod__audio': audio, '.alps-pod__now': now, '.alps-pod__title': { textContent: 'Series' }, '.alps-pod__cover': { src: 'https://site.example/cover.avif' } };
   const section = {
-    dataset: autoNext ? { autoNext: '' } : {}, classList: classes(), contains: () => true,
+    dataset: { play: 'Paleisti:', pause: 'Pristabdyti:', ...(autoNext ? { autoNext: '' } : {}) }, classList: classes(), contains: () => true,
     addEventListener(type, fn) { handlers[type] = fn; },
     querySelector: selector => parts[selector] || null,
     querySelectorAll: selector => (selector === '.alps-pod__episode' ? links : []),
   };
-  const documentStub = { readyState: 'complete', querySelectorAll: () => [section], addEventListener() {} };
-  vm.runInNewContext(podView, { window: {}, navigator: {}, document: documentStub }, { timeout: 5000 });
   const click = (link, extra = {}) => {
     let prevented = false;
     handlers.click({ target: link, button: 0, preventDefault() { prevented = true; }, ...extra });
@@ -165,20 +167,41 @@ function podcastPage(autoNext) {
   };
   return { audio, links, now, details, section, click };
 }
-let page = podcastPage(true);
+function runPodcastView(sections) {
+  const session = { metadata: null, handlers: {}, setActionHandler(name, fn) { this.handlers[name] = fn; } };
+  const documentStub = { readyState: 'complete', querySelectorAll: () => sections.map(p => p.section), addEventListener() {} };
+  vm.runInNewContext(podView, { window: { MediaMetadata: function (data) { Object.assign(this, data); } }, navigator: { mediaSession: session }, document: documentStub }, { timeout: 5000 });
+  return session;
+}
+let page = podcastSection(true);
+const session = runPodcastView([page]);
 assert(page.click(page.links[1]), 'An episode click is handled in the page');
 assert.equal(page.audio.src, 'https://cdn.example/e2.m4a', 'The clicked episode loads into the one player');
 assert(page.audio.plays === 1 && page.now.textContent === 'Episode 2' && page.links[1].attrs['aria-current'] === 'true' && !page.links[0].classList.contains('is-active'), 'It plays and is marked as current');
 assert(page.section.classList.contains('is-playing'), 'The block shows it is playing');
+assert(page.links[1].action.textContent === 'Pristabdyti:' && page.links[0].action.textContent === 'Paleisti:', 'Screen readers hear "Pause:" on the playing episode only');
+assert(session.metadata.title === 'Episode 2' && session.metadata.album === 'Series' && session.metadata.artwork[0].src === 'https://site.example/cover.avif', 'Lock-screen controls show the episode');
+assert(typeof session.handlers.previoustrack === 'function' && typeof session.handlers.nexttrack === 'function', 'Previous and next on the lock screen');
+session.handlers.nexttrack();
+assert(page.audio.src === 'https://cdn.example/e3.m4a' && page.details.open, 'Lock-screen "next" plays the next episode');
+assert.equal(session.handlers.nexttrack, null, 'No "next" on the last episode');
+page.click(page.links[2]);
+assert(page.audio.paused && !page.section.classList.contains('is-playing') && page.links[2].action.textContent === 'Paleisti:', 'Clicking the playing episode pauses it');
 page.click(page.links[1]);
-assert(page.audio.paused && !page.section.classList.contains('is-playing'), 'Clicking the playing episode pauses it');
 page.audio.listeners.ended();
-assert(page.audio.src === 'https://cdn.example/e3.m4a' && page.details.open, 'At the end the next episode plays, opening "Show all" when it is there');
+assert(page.audio.src === 'https://cdn.example/e3.m4a', 'At the end the next episode plays');
 assert(!page.click(page.links[0], { ctrlKey: true }), 'Ctrl+click still opens the file');
-page = podcastPage(false);
+page = podcastSection(false);
+runPodcastView([page]);
 page.click(page.links[0]);
 page.audio.listeners.ended();
 assert.equal(page.audio.src, 'https://cdn.example/e1.m4a', 'No autoplay of the next episode when it is turned off');
+const first = podcastSection(true);
+const second = podcastSection(true);
+runPodcastView([first, second]);
+first.click(first.links[0]);
+second.click(second.links[1]);
+assert(first.audio.paused && !second.audio.paused, 'Two blocks on a page: starting one pauses the other');
 for (const p of ['src/podcast-season/block.json', 'src/podcast-season/class-podcast-season-block.php', 'dist/podcast-season.js', 'dist/podcast-season.css']) {
   assert(fs.existsSync(path.join(root, 'build/alps-gutenberg-blocks', p)), 'Packaged ' + p);
 }

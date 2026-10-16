@@ -59,5 +59,8 @@ return [
 		'Audio player'                                                         => 'Garso grotuvas',
 		'Episodes'                                                             => 'Epizodai',
 		'Show all episodes (%d)'                                               => 'Rodyti visus epizodus (%d)',
+		'the feed is larger than 10 MB'                                        => 'srautas didesnis nei 10 MB',
+		'Play:'                                                                 => 'Paleisti:',
+		'Pause:'                                                                => 'Pristabdyti:',
 	],
 ];
