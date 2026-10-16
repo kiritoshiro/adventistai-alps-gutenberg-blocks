@@ -34,7 +34,8 @@ function wp_remote_get($url, $args) {
 }
 function wp_remote_retrieve_response_code($r) { return $r['code']; }
 function wp_remote_retrieve_body($r) { return $r['body']; }
-function is_wp_error($v) { return false; }
+class WP_Error {}
+function is_wp_error($v) { return $v instanceof WP_Error; }
 function wp_parse_url($url, $component = -1) { return parse_url($url, $component); }
 function wp_json_encode($v) { return json_encode($v); }
 function sanitize_text_field($s) { return trim(preg_replace('/\s+/', ' ', strip_tags((string) $s))); }
@@ -57,6 +58,41 @@ function trailingslashit($s) { return rtrim($s, '/') . '/'; }
 function wp_mkdir_p($dir) { return is_dir($dir) || mkdir($dir, 0777, true); }
 function wp_generate_password($length, $special) { return substr(md5((string) mt_rand()), 0, $length); }
 function wp_delete_file($file) { @unlink($file); }
+
+// WordPress's image editor: sizes by YouTube's image name, records what it was asked to do.
+$GLOBALS['avif'] = false;
+$GLOBALS['avifFail'] = false;
+$GLOBALS['edits'] = [];
+$GLOBALS['filters'] = [];
+function add_filter($hook, $callback, $priority = 10, $args = 1) { $GLOBALS['filters'][$hook][] = $callback; return true; }
+function remove_filter($hook, $callback, $priority = 10) { $GLOBALS['filters'][$hook] = array_filter($GLOBALS['filters'][$hook] ?? [], function ($f) use ($callback) { return $f !== $callback; }); return true; }
+function wp_image_editor_supports($args) { return $GLOBALS['avif'] && 'image/avif' === ($args['mime_type'] ?? ''); }
+function wp_get_image_editor($file, $args = []) { $GLOBALS['edits'][] = basename($file) . ' → ' . ($args['output_mime_type'] ?? ''); return $GLOBALS['avifFail'] ? new WP_Error() : new FakeEditor($file); }
+class FakeEditor
+{
+    public $file;
+    public $crop = null;
+    public function __construct($file) { $this->file = $file; }
+    public function get_size()
+    {
+        preg_match('/-([a-z]+)\.jpg$/', $this->file, $m);
+        $sizes = ['mqdefault' => [320, 180], 'hqdefault' => [480, 360], 'sddefault' => [640, 480], 'maxresdefault' => [1280, 720]];
+        return ['width' => $sizes[$m[1]][0], 'height' => $sizes[$m[1]][1]];
+    }
+    public function crop($x, $y, $w, $h) { $this->crop = [$x, $y, $w, $h]; return true; }
+    public function set_quality($quality) { return true; }
+    public function save($path, $mime)
+    {
+        // Like WordPress 6.1+: converting to another format resets the quality through the filter.
+        $quality = 82;
+        foreach ($GLOBALS['filters']['wp_editor_set_quality'] ?? [] as $filter) {
+            $quality = $filter($quality, $mime);
+        }
+        $GLOBALS['saved'][basename($this->file)] = ['crop' => $this->crop, 'quality' => $quality, 'temporary' => basename($path)];
+        file_put_contents($path, 'AVIF');
+        return ['path' => $path, 'mime-type' => $mime];
+    }
+}
 
 require dirname(__DIR__) . '/src/youtube-channel/class-youtube-channel-block.php';
 use ALPS\Gutenberg\Blocks\YouTubeChannelBlock as Block;
@@ -237,6 +273,58 @@ touch($thumbDir . 'zznewvideoz-mqdefault.jpg', time() - 10 * 86400);
 touch($thumbDir . 'v4aaaaaaaaa-mqdefault.jpg', time() - 100 * 86400);
 $block->saveThumbs($key);
 check('copies unused for 90 days are removed, recent and listed ones kept', ! is_file($thumbDir . 'zzoldvideoz-mqdefault.jpg') && is_file($thumbDir . 'zznewvideoz-mqdefault.jpg') && is_file($thumbDir . 'v4aaaaaaaaa-mqdefault.jpg'));
+check('no AVIF copies where WordPress cannot write AVIF', ! glob($thumbDir . '*.avif') && ! $GLOBALS['edits']);
+
+// AVIF copies, cropped to the 16:9 frame the block shows.
+check('4:3 hq/sd images are cropped to their 16:9 middle', [0, 45, 480, 270] === Block::frame(480, 360) && [0, 60, 640, 360] === Block::frame(640, 480));
+check('16:9 images are not cropped', null === Block::frame(320, 180) && null === Block::frame(1280, 720) && null === Block::frame(0, 0));
+check('AVIF quality 60 unless the theme sets one', 60 === Block::avifQuality() && 70 === (function () { $GLOBALS['options']['_alps_image_avif_quality'] = '70'; return Block::avifQuality(); })() && 60 === (function () { $GLOBALS['options']['_alps_image_avif_quality'] = '0'; return Block::avifQuality(); })());
+unset($GLOBALS['options']['_alps_image_avif_quality']);
+$GLOBALS['avif'] = true;
+$GLOBALS['calls'] = [];
+$GLOBALS['saved'] = [];
+$block->saveThumbs($key);
+$avifs = array_map('basename', glob($thumbDir . 'v*.avif') ?: []);
+sort($avifs);
+check('the next run adds AVIF copies of the JPEGs already saved', ['v3aaaaaaaaa-hqdefault.avif', 'v3aaaaaaaaa-mqdefault.avif', 'v4aaaaaaaaa-hqdefault.avif', 'v4aaaaaaaaa-maxresdefault.avif', 'v4aaaaaaaaa-mqdefault.avif', 'v5aaaaaaaaa-hqdefault.avif', 'v5aaaaaaaaa-mqdefault.avif'] === $avifs);
+check('without downloading them again', ! array_filter($GLOBALS['calls'], function ($url) { return false === strpos($url, '/v1aaaaaaaaa/'); }));
+check('hqdefault loses its bars, mq/maxres are not cropped', [0, 45, 480, 270] === $GLOBALS['saved']['v4aaaaaaaaa-hqdefault.jpg']['crop'] && null === $GLOBALS['saved']['v4aaaaaaaaa-mqdefault.jpg']['crop'] && null === $GLOBALS['saved']['v4aaaaaaaaa-maxresdefault.jpg']['crop']);
+check('AVIF written at quality 60 despite the format default', 60 === $GLOBALS['saved']['v4aaaaaaaaa-mqdefault.jpg']['quality'] && ! $GLOBALS['filters']['wp_editor_set_quality']);
+check('AVIF written beside the target and renamed', (bool) preg_match('/^v4aaaaaaaaa-mqdefault\.[A-Za-z0-9]{8}\.tmp\.avif$/D', $GLOBALS['saved']['v4aaaaaaaaa-mqdefault.jpg']['temporary']) && ! glob($thumbDir . '*.tmp.avif'));
+
+$GLOBALS['scheduled'] = [];
+$html = $block->render($attributes);
+$posterSizes = 'auto, (max-width: 640px) calc(100vw - 40px), (max-width: 1000px) calc(100vw - 80px), 920px';
+check('poster: AVIF source with the same widths and sizes, local JPEG fallback', false !== strpos($html, '<button type="button" class="alps-ytc__poster" data-video="v4aaaaaaaaa" aria-label="Play: Video v4aaaaaaaaa"><picture><source type="image/avif" srcset="https://example.test/wp-content/uploads/alps-ytc/v4aaaaaaaaa-mqdefault.avif 320w, https://example.test/wp-content/uploads/alps-ytc/v4aaaaaaaaa-hqdefault.avif 480w" sizes="' . $posterSizes . '"><img src="https://example.test/wp-content/uploads/alps-ytc/v4aaaaaaaaa-mqdefault.jpg" srcset="https://example.test/wp-content/uploads/alps-ytc/v4aaaaaaaaa-mqdefault.jpg 320w, https://example.test/wp-content/uploads/alps-ytc/v4aaaaaaaaa-hqdefault.jpg 480w" sizes="' . $posterSizes . '" width="1280" height="720" alt="" loading="lazy" decoding="async"></picture>'));
+check('cards sized to their column', false !== strpos($html, 'sizes="auto, (max-width: 640px) calc(80vw - 32px), (max-width: 768px) calc(50vw - 50px), (max-width: 1000px) calc((100vw - 120px) / 3), 294px"'));
+check('no copy yet: plain <img> with YouTube\'s address', false !== strpos($html, '<span class="alps-ytc__thumb"><img src="https://i.ytimg.com/vi/v1aaaaaaaaa/mqdefault.jpg"') && false === strpos($html, 'v1aaaaaaaaa-mqdefault.avif'));
+check('a <picture> for each image with copies (poster, 2 cards)', 3 === substr_count($html, '<picture>') && 3 === substr_count($html, '</picture>'));
+$wideHtml = $block->render($attributes + ['align' => 'wide']);
+check('wide block: AVIF up to 1280 px, sizes without the 1000 px limit', false !== strpos($wideHtml, 'v4aaaaaaaaa-maxresdefault.avif 1280w" sizes="auto, (max-width: 640px) calc(100vw - 40px), calc(100vw - 80px)"') && false !== strpos($wideHtml, '(max-width: 768px) calc(50vw - 50px), calc((100vw - 120px) / 3)"'));
+unlink($thumbDir . 'v3aaaaaaaaa-hqdefault.avif');
+$html = $block->render($attributes);
+check('a width without an AVIF copy: no <picture>, so no screen gets a too small image', 2 === substr_count($html, '<picture>') && false !== strpos($html, '<span class="alps-ytc__thumb"><img src="https://example.test/wp-content/uploads/alps-ytc/v3aaaaaaaaa-mqdefault.jpg"') && false === strpos($html, 'v3aaaaaaaaa-mqdefault.avif'));
+$GLOBALS['saved'] = [];
+$block->saveThumbs($key);
+check('a missing AVIF copy is made on the next run', ['v3aaaaaaaaa-hqdefault.jpg'] === array_keys($GLOBALS['saved']) && is_file($thumbDir . 'v3aaaaaaaaa-hqdefault.avif'));
+
+array_map('unlink', glob($thumbDir . 'v*.avif') ?: []);
+$GLOBALS['avifFail'] = true;
+$GLOBALS['edits'] = [];
+$block->saveThumbs($key);
+check('a failed conversion is not repeated for every file in the run', ['v4aaaaaaaaa-mqdefault.jpg → image/avif'] === $GLOBALS['edits'] && ! glob($thumbDir . '*.avif'));
+$GLOBALS['avifFail'] = false;
+
+$block->saveThumbs($key);
+touch($thumbDir . 'zzoldvideoz-mqdefault.avif', time() - 100 * 86400);
+touch($thumbDir . 'zznewvideoz-mqdefault.avif', time() - 10 * 86400);
+touch($thumbDir . 'v4aaaaaaaaa-mqdefault.avif', time() - 100 * 86400);
+touch($thumbDir . 'not-a-thumb.avif', time() - 100 * 86400);
+touch($thumbDir . 'zzoldvideoz-hqdefault.jpg', time() - 100 * 86400);
+$block->saveThumbs($key);
+check('pruning removes old unused AVIF and JPEG copies alike', ! is_file($thumbDir . 'zzoldvideoz-mqdefault.avif') && ! is_file($thumbDir . 'zzoldvideoz-hqdefault.jpg') && is_file($thumbDir . 'zznewvideoz-mqdefault.avif') && is_file($thumbDir . 'v4aaaaaaaaa-mqdefault.avif'));
+check('pruning leaves files with other names alone', is_file($thumbDir . 'not-a-thumb.avif'));
+$GLOBALS['avif'] = false;
 array_map('unlink', glob($thumbDir . '*') ?: []);
 @rmdir($thumbDir);
 @rmdir(THUMBS_BASE);
