@@ -51,6 +51,9 @@ class PodcastSeasonBlock
 
     const ITUNES = 'http://www.itunes.com/dtds/podcast-1.0.dtd';
 
+    /** Feed hosts (and their subdomains) whose CDN serves a feed days old unless the query changes. */
+    const CDN_CACHED_HOSTS = ['anchor.fm'];
+
     public function init()
     {
         $pluginFile = dirname(__DIR__, 2) . '/plugin.php';
@@ -160,8 +163,20 @@ class PodcastSeasonBlock
         if (! function_exists('simplexml_load_string')) {
             throw new \RuntimeException(__('this server cannot read XML (SimpleXML is missing)', 'alps-gutenberg-blocks')); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- caught in refresh(); shown only through notice(), which escapes.
         }
+        // Spotify for Creators (anchor.fm) lets its CDN keep a feed for up to a week
+        // (s-maxage ~605000), so a new episode stayed hidden for days. A query that
+        // changes every FRESH seconds asks the CDN for a current copy. Other feeds
+        // keep their address (a signed or strict feed may reject an extra query).
+        $url = $feedUrl;
+        $host = strtolower((string) wp_parse_url($feedUrl, PHP_URL_HOST));
+        foreach (self::CDN_CACHED_HOSTS as $cached) {
+            if ($host === $cached || substr($host, -strlen($cached) - 1) === '.' . $cached) {
+                $url = add_query_arg('alps_gb_t', intdiv(time(), self::FRESH), $feedUrl);
+                break;
+            }
+        }
         // wp_safe_remote_get() refuses local and private addresses.
-        $response = wp_safe_remote_get($feedUrl, ['timeout' => 10, 'redirection' => 3, 'limit_response_size' => self::MAX_FEED_BYTES]);
+        $response = wp_safe_remote_get($url, ['timeout' => 10, 'redirection' => 3, 'limit_response_size' => self::MAX_FEED_BYTES, 'headers' => ['Cache-Control' => 'no-cache']]);
         if (is_wp_error($response)) {
             throw new \RuntimeException($response->get_error_message()); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- caught in refresh(); shown only through notice(), which escapes.
         }
