@@ -34,6 +34,14 @@ function wp_safe_remote_get($url, $args) {
 function wp_remote_retrieve_response_code($r) { return $r['code']; }
 function wp_remote_retrieve_body($r) { return $r['body']; }
 function wp_parse_url($url, $component = -1) { return parse_url($url, $component); }
+// Like core: the fragment stays last and an existing key is replaced.
+function add_query_arg($key, $value, $url) {
+    $parts = explode('#', $url, 2);
+    $base = explode('?', $parts[0], 2);
+    parse_str($base[1] ?? '', $query);
+    $query[$key] = $value;
+    return $base[0] . '?' . http_build_query($query) . (isset($parts[1]) ? '#' . $parts[1] : '');
+}
 function wp_json_encode($v) { return json_encode($v); }
 function wp_strip_all_tags($s) { return trim(strip_tags((string) $s)); }
 function sanitize_mime_type($s) { return preg_replace('/[^-+*.a-zA-Z0-9\/]/', '', $s); }
@@ -215,6 +223,18 @@ check('no notice CSS or JS loaded for visitors', [] === $GLOBALS['enqueued']);
 $attributes = ['feedUrl' => FEED, 'season' => 3, 'title' => 'Marijos Sūnaus gyvenimas', 'removePrefix' => 'Marijos Sūnaus gyvenimas', 'visible' => 2];
 $html = $block->render($attributes);
 check('first render fetches the feed once, bounded', 1 === count($GLOBALS['calls']) && 10 === $GLOBALS['args']['timeout'] && Block::MAX_FEED_BYTES === $GLOBALS['args']['limit_response_size']);
+check('anchor.fm feed fetched past the CDN cache', 1 === preg_match('#^' . preg_quote(FEED, '#') . '\?alps_gb_t=\d+$#D', $GLOBALS['calls'][0]) && 'no-cache' === $GLOBALS['args']['headers']['Cache-Control']);
+// The hour can turn between fetch() and the check, so either bucket passes, and the other checks ignore the number.
+$hour = intdiv(time(), Block::FRESH);
+$fetched = function ($url) { $GLOBALS['calls'] = []; Block::fetch($url, 3); return preg_replace('/alps_gb_t=\d+/', 'alps_gb_t=N', $GLOBALS['calls'][0], -1, $n) . ($n > 1 ? ' (twice)' : ''); };
+$GLOBALS['calls'] = [];
+Block::fetch(FEED, 3);
+check('the cache query changes every FRESH seconds', in_array($GLOBALS['calls'][0], [FEED . '?alps_gb_t=' . $hour, FEED . '?alps_gb_t=' . ($hour + 1)], true));
+check('feed query kept, cache query added before the fragment', FEED . '?format=rss&alps_gb_t=N#top' === $fetched(FEED . '?format=rss#top'));
+check('a cache query already in the address is replaced', FEED . '?alps_gb_t=N' === $fetched(FEED . '?alps_gb_t=1'));
+check('anchor.fm subdomains get the cache query', 'https://www.anchor.fm/rss?alps_gb_t=N' === $fetched('https://www.anchor.fm/rss'));
+check('other feeds keep their address (signed or strict feeds)', 'https://cdn.example.org/rss?sig=abc' === $fetched('https://cdn.example.org/rss?sig=abc') && 'https://notanchor.fm/rss' === $fetched('https://notanchor.fm/rss') && 'no-cache' === $GLOBALS['args']['headers']['Cache-Control']);
+$GLOBALS['calls'] = [FEED];
 check('list cached in an option that is not autoloaded', 1 === count($GLOBALS['options']) && false === reset($GLOBALS['autoload']));
 check('one audio player that downloads nothing until play', 1 === substr_count($html, '<audio') && false !== strpos($html, 'preload="none"'));
 check('player starts on episode 1', preg_match('#<audio[^>]+src="https://anchor\.fm/[^"]+e3-1\.m4a"#', $html) && false !== strpos($html, '<p class="alps-pod__now">Dievas su mumis (santrauka)</p>'));

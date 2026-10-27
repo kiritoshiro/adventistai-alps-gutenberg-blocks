@@ -3,6 +3,11 @@ A record of the changes made to `ALPS Gutenberg Blocks`.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.2]
+
+### Fixed
+- Podcast Season: a new episode no longer stays missing for days. Spotify for Creators (anchor.fm) lets its CDN serve a cached copy of the feed for up to a week, so "Marijos Sūnaus gyvenimas. 2" published on 27 October was not in the feed the block read (built 22 October). For anchor.fm feeds the block now adds a query that changes every hour (`alps_gb_t`, placed before any `#fragment` and replacing one already there), so each refresh gets a current copy; other feeds keep their address, since a signed or strict feed may reject an extra query. Every feed request also sends `Cache-Control: no-cache`. The list still refreshes at most hourly through WP-Cron.
+
 ## [3.5.1]
 
 ### Changed
