@@ -23,7 +23,11 @@ function set_transient($key, $value, $ttl) { $GLOBALS['transients'][$key] = $val
 function delete_transient($key) { unset($GLOBALS['transients'][$key]); return true; }
 function wp_next_scheduled($hook, $args) { return in_array([$hook, $args], $GLOBALS['scheduled'], false) ? time() : false; }
 function wp_schedule_single_event($time, $hook, $args) { $GLOBALS['scheduled'][] = [$hook, $args]; return true; }
-function current_user_can($cap) { return $GLOBALS['editor']; }
+// A Contributor: edit_posts without publish_posts ($GLOBALS['publisher'] = false).
+function current_user_can($cap) { return 'publish_posts' === $cap && isset($GLOBALS['publisher']) ? $GLOBALS['publisher'] : $GLOBALS['editor']; }
+function is_user_logged_in() { return ! empty($GLOBALS['loggedIn']); }
+function is_admin() { return false; }
+function is_preview() { return ! empty($GLOBALS['preview']); }
 class WP_Error { public $message; function __construct($m) { $this->message = $m; } function get_error_message() { return $this->message; } }
 function is_wp_error($v) { return $v instanceof WP_Error; }
 function wp_safe_remote_get($url, $args) {
@@ -363,6 +367,44 @@ check('saving a cover removes copies unused for 90 days, keeps recent ones and o
 foreach (glob(COVER_BASE . '/alps-podcast/*') as $file) { unlink($file); }
 @rmdir(COVER_BASE . '/alps-podcast');
 @rmdir(COVER_BASE);
+
+// The editor, previews and the REST block renderer accept any attributes: a
+// new feed or season is fetched there only for users who can publish posts.
+$GLOBALS['feed'] = function ($url) use (&$xml) { return ['code' => 200, 'body' => $xml]; };
+$GLOBALS['editor'] = true;
+$GLOBALS['publisher'] = false;
+$GLOBALS['loggedIn'] = true;
+$GLOBALS['preview'] = true;
+$GLOBALS['calls'] = [];
+$GLOBALS['scheduled'] = [];
+$options = $GLOBALS['options'];
+$transients = $GLOBALS['transients'];
+$html = $block->render(['feedUrl' => 'https://contributor.example/rss', 'season' => 3]);
+check('Contributor preview: a new feed is not fetched, stored or scheduled', [] === $GLOBALS['calls'] && $options === $GLOBALS['options'] && $transients === $GLOBALS['transients'] && [] === $GLOBALS['scheduled']);
+check('the Contributor sees why', false !== strpos($html, 'loaded only when someone who can publish posts'));
+foreach (range(100, 120) as $season) { $block->render(['feedUrl' => FEED, 'season' => $season]); }
+check('nor any number of other seasons', [] === $GLOBALS['calls'] && $options === $GLOBALS['options']);
+check('a cached season still shows', false !== strpos($block->render($attributes), 'alps-pod__') && [] === $GLOBALS['calls']);
+$GLOBALS['publisher'] = true;
+$block->render(['feedUrl' => 'https://contributor.example/rss', 'season' => 3]);
+check('a user who can publish posts fetches it', 1 === count($GLOBALS['calls']));
+$GLOBALS['publisher'] = false;
+$GLOBALS['preview'] = false;
+$GLOBALS['calls'] = [];
+$block->render(['feedUrl' => 'https://published.example/rss', 'season' => 3]);
+check('a published page fetches a new feed for any logged-in reader', 1 === count($GLOBALS['calls']));
+$GLOBALS['loggedIn'] = false;
+$GLOBALS['calls'] = [];
+$block->render(['feedUrl' => 'https://visitor.example/rss', 'season' => 3]);
+check('and for visitors', 1 === count($GLOBALS['calls']));
+define('REST_REQUEST', true);
+$GLOBALS['loggedIn'] = true;
+$GLOBALS['calls'] = [];
+$block->render(['feedUrl' => 'https://rest.example/rss', 'season' => 3]);
+check('REST block renderer: a Contributor fetches nothing', [] === $GLOBALS['calls']);
+$GLOBALS['loggedIn'] = false;
+unset($GLOBALS['publisher']);
+$GLOBALS['editor'] = false;
 
 // Every translatable PHP string has a Lithuanian translation.
 $source = file_get_contents(dirname(__DIR__) . '/src/podcast-season/class-podcast-season-block.php');
