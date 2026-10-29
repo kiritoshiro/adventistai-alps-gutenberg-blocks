@@ -393,7 +393,25 @@ class YouTubeChannelBlock
         if (is_string($error) && '' !== $error) {
             return ['error' => $error];
         }
+        if (! self::mayFetch()) {
+            return ['error' => __('a new channel is loaded only when someone who can publish posts previews or views the page', 'alps-gutenberg-blocks')];
+        }
         return $this->refresh($channel, $excludeShorts);
+    }
+
+    /**
+     * Whether this request may fetch a channel that has no cached list yet.
+     * The editor, previews and the REST block renderer accept any attributes
+     * from anyone who can edit posts, so a Contributor could otherwise make
+     * the site spend API quota on, and keep a list (and thumbnails) for, every
+     * channel they type. There only users who can publish posts fetch; anyone
+     * else gets cached lists. Public pages show published content, so visitors
+     * and WP-Cron still fetch a new channel's first list.
+     */
+    private static function mayFetch()
+    {
+        $editor = (defined('REST_REQUEST') && REST_REQUEST) || is_admin() || is_preview();
+        return ! $editor || ! is_user_logged_in() || current_user_can('publish_posts');
     }
 
     /**

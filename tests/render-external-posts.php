@@ -8,7 +8,8 @@ function wp_parse_url($s,$part=-1){return parse_url($s,$part);} function untrail
 function absint($s){return abs((int)$s);} function shortcode_atts($defaults,$atts,$tag){return array_intersect_key(array_merge($defaults,$atts),$defaults);}
 function wp_enqueue_style($s){$GLOBALS['style']=$s;} function wp_register_style(...$a){} function plugins_url($s,$f){return $s;}
 function register_block_type($p,$a){$GLOBALS['registered']=$a;} function shortcode_exists($s){return isset($GLOBALS['shortcodes'][$s]);} function add_shortcode($s,$cb){$GLOBALS['shortcodes'][$s]=$cb;}
-function get_block_wrapper_attributes($a){return 'class="'.esc_attr($a['class']).'"';} function current_user_can($s){return $GLOBALS['admin'];}
+function get_block_wrapper_attributes($a){return 'class="'.esc_attr($a['class']).'"';} function current_user_can($s){return 'publish_posts'===$s&&isset($GLOBALS['publisher'])?$GLOBALS['publisher']:$GLOBALS['admin'];}
+function is_user_logged_in(){return !empty($GLOBALS['loggedIn']);} function is_admin(){return false;} function is_preview(){return !empty($GLOBALS['preview']);}
 function wp_json_encode($s){return json_encode($s);} function get_transient($k){return $GLOBALS['cache'][$k]??false;} function set_transient($k,$v,$ttl){$GLOBALS['cache'][$k]=$v; $GLOBALS['ttl']=$ttl;}
 function wp_strip_all_tags($s,$x=false){return strip_tags($s);} function wp_trim_words($s,$n,$more){$words=explode(' ',$s);return implode(' ',array_slice($words,0,$n)).(count($words)>$n?$more:'');}
 function __($s,$d){return $s;} function esc_html__($s,$d){return esc_html($s);} function is_wp_error($s){return $s instanceof WP_Error;}
@@ -50,4 +51,14 @@ $html=$b->render(['feeds'=>'https://bad.example/feed/']);check(strpos($html,'cou
 check(strpos($b->render(['feeds'=>[],'number'=>[]]),'No valid feed')!==false,'malformed attributes');
 try{$b->fetchFeed('https://throws.example/feed/');}catch(Exception $e){}check(empty($GLOBALS['actions']),'filter removed after exception');
 check(strpos($b->render(['feeds'=>'https://headings.example/feed/','layout'=>'cards']), '<h2 class="alps-epa-feed-title">')!==false,'source heading is level two');
+// Editor, preview and REST block renderer (any attributes or shortcode): uncached feeds are fetched only for users who can publish posts.
+$GLOBALS['admin']=false;$GLOBALS['publisher']=false;$GLOBALS['loggedIn']=true;$GLOBALS['preview']=true;$GLOBALS['calls']=[];$cache=$GLOBALS['cache'];
+$html=$b->render(['feeds'=>'https://contributor.example/feed/,https://contributor2.example/feed/']);check([]===$GLOBALS['calls'] && $cache===$GLOBALS['cache'],'Contributor preview: no fetch, nothing cached');check(strpos($html,'loaded when someone who can publish posts')!==false,'Contributor sees why');
+$b->shortcode(['feeds'=>'https://shortcode.example/feed/']);check([]===$GLOBALS['calls'],'nor through the shortcode');
+check(strpos($b->render(['feeds'=>"https://news.example,https://news.example/feed/\nhttps://other.example/feed/",'number'=>2]),'Naujienos')!==false && []===$GLOBALS['calls'],'cached feeds still show');
+$GLOBALS['publisher']=true;$b->render(['feeds'=>'https://contributor.example/feed/']);check(1===count($GLOBALS['calls']),'a user who can publish posts fetches');
+$GLOBALS['publisher']=false;$GLOBALS['preview']=false;$GLOBALS['calls']=[];$b->render(['feeds'=>'https://published.example/feed/']);check(1===count($GLOBALS['calls']),'a published page fetches for any logged-in reader');
+$GLOBALS['loggedIn']=false;$GLOBALS['calls']=[];$b->render(['feeds'=>'https://visitor.example/feed/']);check(1===count($GLOBALS['calls']),'and for visitors');
+define('REST_REQUEST',true);$GLOBALS['loggedIn']=true;$GLOBALS['calls']=[];$b->render(['feeds'=>'https://rest.example/feed/']);check([]===$GLOBALS['calls'],'REST block renderer: a Contributor fetches nothing');
+$GLOBALS['loggedIn']=false;unset($GLOBALS['publisher']);
 check($GLOBALS['style']===$b::HANDLE,'conditional style');unlink(ABSPATH . WPINC . "/feed.php"); rmdir(ABSPATH . WPINC); rmdir(ABSPATH); echo "PASS: $checks external-feed checks\n";

@@ -197,6 +197,9 @@ class ExternalPostsBlock
         if ( false !== $cached_html ) {
             return $cached_html;
         }
+        if ( ! $this->mayFetch() ) {
+            return '<p class="alps-epa-message">' . esc_html__( 'External posts are loaded when someone who can publish posts previews or views the page.', 'alps-gutenberg-blocks' ) . '</p>';
+        }
 
         require_once ABSPATH . WPINC . '/feed.php';
 
@@ -317,6 +320,21 @@ class ExternalPostsBlock
         set_transient( $cache_key, $html, $cache_min * MINUTE_IN_SECONDS );
 
         return $html;
+    }
+
+    /**
+     * Whether this request may fetch feeds that are not cached. The editor,
+     * previews and the REST block renderer accept any attributes (and a
+     * Contributor's draft any shortcode) from anyone who can edit posts, so a
+     * Contributor could otherwise make the site fetch up to 8 addresses of
+     * their choice per render. There only users who can publish posts fetch;
+     * anyone else gets cached lists. Public pages show published content, so
+     * visitors still fetch them.
+     */
+    private function mayFetch()
+    {
+        $editor = (defined('REST_REQUEST') && REST_REQUEST) || is_admin() || is_preview();
+        return ! $editor || ! is_user_logged_in() || current_user_can('publish_posts');
     }
 
 }

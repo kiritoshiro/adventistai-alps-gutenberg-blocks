@@ -3,6 +3,12 @@ A record of the changes made to `ALPS Gutenberg Blocks`.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+- Updates: a release is offered only when GitHub lists a SHA-256 digest for its `alps-gutenberg-blocks-vX.Y.Z.zip` asset (GitHub records one for every uploaded asset, so `publish.yml` needs no change), and the ZIP is installed only when its size, ZIP header and SHA-256 match. The asset must belong to this repository's release (its API and `github.com/…/releases/download/` addresses are checked) and be at most 20 MB. The plugin now downloads it itself (`upgrader_pre_download`): the optional `ALPS_GUTENBERG_GITHUB_TOKEN` is sent only to `api.github.com`, whose one redirect must lead to `release-assets.githubusercontent.com` or `objects.githubusercontent.com` over HTTPS and is followed without the token and without further redirects. Before, the token was added to every request for the asset and WordPress kept it when following GitHub's redirect to its download host. The release lookup follows no redirects and reads at most 1 MB. A release cached by an earlier version (no digest) is looked up again.
+- YouTube Channel Videos, Podcast Season and External Posts: in the editor, previews, wp-admin and REST requests (including the block renderer, which accepts any attributes from anyone who can edit posts), a channel, feed or season with nothing cached yet is fetched only for users who can publish posts. A Contributor could otherwise make the site spend YouTube API quota on, download, and keep a list (and thumbnails or a cover) for every value typed. They now get cached lists, or a note saying the list loads when someone who can publish previews or views the page. Published pages still fetch for every reader, so nothing changes for visitors.
+
 ## [3.5.2]
 
 ### Fixed
