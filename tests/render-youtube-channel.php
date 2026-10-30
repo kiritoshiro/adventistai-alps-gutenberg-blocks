@@ -23,7 +23,11 @@ function set_transient($key, $value, $ttl) { $GLOBALS['transients'][$key] = $val
 function delete_transient($key) { unset($GLOBALS['transients'][$key]); return true; }
 function wp_next_scheduled($hook, $args) { return in_array([$hook, $args], $GLOBALS['scheduled'], false) ? time() : false; }
 function wp_schedule_single_event($time, $hook, $args) { $GLOBALS['scheduled'][] = [$hook, $args]; return true; }
-function current_user_can($cap) { return $GLOBALS['editor']; }
+// A Contributor: edit_posts without publish_posts ($GLOBALS['publisher'] = false).
+function current_user_can($cap) { return 'publish_posts' === $cap && isset($GLOBALS['publisher']) ? $GLOBALS['publisher'] : $GLOBALS['editor']; }
+function is_user_logged_in() { return ! empty($GLOBALS['loggedIn']); }
+function is_admin() { return false; }
+function is_preview() { return ! empty($GLOBALS['preview']); }
 function add_query_arg($args, $url) { return $url . '?' . implode('&', array_map(function ($k, $v) { return $k . '=' . $v; }, array_keys($args), $args)); }
 function wp_remote_get($url, $args) {
     $GLOBALS['calls'][] = $url;
@@ -447,6 +451,44 @@ check('unknown channel reported', false !== strpos((function () use ($block) { $
 check('no channel: editor notice', false !== strpos($block->render(['channel' => 'nonsense']), 'enter a channel link'));
 $GLOBALS['editor'] = false;
 check('no channel: nothing for visitors', '' === $block->render(['channel' => 'nonsense']));
+
+// The editor, previews and the REST block renderer accept any attributes: a
+// new channel is fetched there only for users who can publish posts.
+$GLOBALS['options']['alps_gb_youtube_api_key'] = KEY;
+$GLOBALS['editor'] = true;
+$GLOBALS['publisher'] = false;
+$GLOBALS['loggedIn'] = true;
+$GLOBALS['preview'] = true;
+$GLOBALS['calls'] = [];
+$GLOBALS['scheduled'] = [];
+$options = $GLOBALS['options'];
+$transients = $GLOBALS['transients'];
+$html = $block->render(['channel' => 'UCcontributorTypedAChann']);
+check('Contributor preview: a new channel is not fetched, stored or scheduled', [] === $GLOBALS['calls'] && $options === $GLOBALS['options'] && $transients === $GLOBALS['transients'] && [] === $GLOBALS['scheduled']);
+check('the Contributor sees why', false !== strpos($html, 'loaded only when someone who can publish posts'));
+foreach (range(1, 20) as $n) { $block->render(['channel' => '@typedhandle' . $n]); }
+check('nor any number of other channels', [] === $GLOBALS['calls'] && $options === $GLOBALS['options']);
+check('a cached channel still shows', false !== strpos($block->render(['channel' => '@TrijuAngeluStudija']), 'alps-ytc__card') && [] === $GLOBALS['calls']);
+$GLOBALS['publisher'] = true;
+$block->render(['channel' => 'UCcontributorTypedAChann']);
+check('a user who can publish posts fetches it', count($GLOBALS['calls']) > 0);
+$GLOBALS['publisher'] = false;
+$GLOBALS['preview'] = false;
+$GLOBALS['calls'] = [];
+$block->render(['channel' => '@publishedpage']);
+check('a published page fetches a new channel for any logged-in reader', count($GLOBALS['calls']) > 0);
+$GLOBALS['loggedIn'] = false;
+$GLOBALS['calls'] = [];
+$block->render(['channel' => '@visitorpage']);
+check('and for visitors', count($GLOBALS['calls']) > 0);
+define('REST_REQUEST', true);
+$GLOBALS['loggedIn'] = true;
+$GLOBALS['calls'] = [];
+$block->render(['channel' => '@restrenderer']);
+check('REST block renderer: a Contributor fetches nothing', [] === $GLOBALS['calls']);
+$GLOBALS['loggedIn'] = false;
+unset($GLOBALS['publisher']);
+$GLOBALS['editor'] = false;
 
 // API key sources.
 $GLOBALS['options']['alps_gb_youtube_api_key'] = '';
