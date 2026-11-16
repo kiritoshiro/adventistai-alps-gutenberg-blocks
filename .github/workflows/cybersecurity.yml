@@ -102,4 +102,5 @@ jobs:
         php tests/render-youtube-channel.php
         php tests/render-book-showcase.php
         php tests/render-podcast-season.php
+        php tests/render-vienas-balsas.php
         php tests/updater.php

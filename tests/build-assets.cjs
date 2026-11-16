@@ -12,6 +12,7 @@ const books = JSON.parse(fs.readFileSync(path.join(root, 'src/book-showcase/bloc
 const newspaper = JSON.parse(fs.readFileSync(path.join(root, 'src/newspaper-posts/block.json'), 'utf8'));
 const external = JSON.parse(fs.readFileSync(path.join(root, 'src/external-posts/block.json'), 'utf8'));
 const podcast = JSON.parse(fs.readFileSync(path.join(root, 'src/podcast-season/block.json'), 'utf8'));
+const vienas = JSON.parse(fs.readFileSync(path.join(root, 'src/vienas-balsas/block.json'), 'utf8'));
 const registered = new Map();
 const stub = new Proxy(function () { return stub; }, { get(target, key) { return Reflect.has(target, key) ? Reflect.get(target, key) : stub; } });
 const wp = {
@@ -20,12 +21,12 @@ const wp = {
   i18n: { __: text => text },
 };
 for (const name of ['blockEditor', 'components', 'data', 'date', 'htmlEntities', 'serverSideRender']) wp[name] = stub;
-wp.blockEditor = { useBlockProps: () => ({}), InspectorControls: stub, BlockControls: stub };
+wp.blockEditor = { useBlockProps: () => ({}), InspectorControls: stub, BlockControls: stub, MediaUpload: 'MediaUpload', MediaUploadCheck: stub };
 const bundle = fs.readFileSync(path.join(root, 'dist/blocks.build.js'), 'utf8');
 vm.runInNewContext(bundle, { window: { wp }, wp, console, URL }, { timeout: 5000 });
 
-assert.deepEqual([...registered.keys()], [metadata.name, youtube.name, books.name, newspaper.name, external.name, podcast.name], 'All six blocks register, nothing else');
-for (const data of [metadata, youtube, books, newspaper, external, podcast]) {
+assert.deepEqual([...registered.keys()], [metadata.name, youtube.name, books.name, newspaper.name, external.name, podcast.name, vienas.name], 'All seven blocks register, nothing else');
+for (const data of [metadata, youtube, books, newspaper, external, podcast, vienas]) {
   const block = registered.get(data.name);
   assert.equal(typeof block.edit, 'function', `${data.name} has an editor`);
   assert.equal(block.save(), null, `${data.name} is rendered in PHP`);
@@ -206,3 +207,89 @@ for (const p of ['src/podcast-season/block.json', 'src/podcast-season/class-podc
   assert(fs.existsSync(path.join(root, 'build/alps-gutenberg-blocks', p)), 'Packaged ' + p);
 }
 console.log(`PASS: Podcast Season editor controls, player script (JS ${podView.length} B, CSS ${podStyle.length} B) and packaged assets.`);
+
+// Vienas balsas: editor controls change only their own attribute or card; 1–3 cards; static CSS.
+// Values made inside the bundle's context have its own Array/Object prototypes.
+const plain = value => JSON.parse(JSON.stringify(value));
+const vienasDefaults = Object.fromEntries(Object.entries(vienas.attributes).map(([k, v]) => [k, v.default]));
+assert.equal(vienas.attributes.headingLevel.default, 2, 'The heading is an h2 by default');
+assert.equal(vienasDefaults.heading, 'Vienas balsas 2027');
+assert.deepEqual(vienasDefaults.cards.map(c => c.title), ['Marijos sūnaus gyvenimas', 'Biblijinis išgelbėjimo planas'], 'Two default project cards');
+assert.equal(vienasDefaults.showCta, true, 'The call-to-action card is on by default');
+const vienasUpdates = [];
+const vienasEditor = attrs => treeNodes(registered.get(vienas.name).edit({ attributes: attrs, setAttributes: v => vienasUpdates.push(v) }));
+let vienasNodes = vienasEditor(vienasDefaults);
+assert.equal(vienasUpdates.length, 0, 'Opening Vienas balsas preserves settings');
+const vienasControls = label => vienasNodes.filter(n => n.props?.label === label);
+for (const [label, key, value] of [['Antraštė', 'heading', 'Kitas'], ['Nuorodos tekstas', 'linkText', 'Plačiau'], ['Nuorodos adresas', 'linkUrl', '/kaip-prisideti/'], ['Nuorodos „Daugiau“ tekstas', 'moreText', 'Skaityti'], ['Rodyti kvietimo kortelę', 'showCta', false], ['Mygtuko tekstas', 'ctaButtonText', 'Noriu'], ['Mygtuko adresas', 'ctaUrl', 'https://example.org/forma']]) {
+  vienasControls(label)[0].props.onChange(value);
+  assert.equal(vienasUpdates.at(-1)[key], value, label + ' updates the correct setting');
+}
+vienasControls('Antraštės lygis')[0].props.onChange('3');
+assert.equal(vienasUpdates.at(-1).headingLevel, 3, 'Heading level is stored as a number');
+// Card fields: "Pavadinimas" is listed for card 1, card 2 and the call-to-action card.
+assert.equal(vienasControls('Pavadinimas').length, 3, 'A title field per card plus the call-to-action card');
+vienasControls('Pavadinimas')[1].props.onChange('Naujas');
+assert.deepEqual(plain(vienasUpdates.at(-1).cards.map(c => c.title)), ['Marijos sūnaus gyvenimas', 'Naujas'], 'A card field changes only that card');
+assert.equal(vienasDefaults.cards[1].title, 'Biblijinis išgelbėjimo planas', 'Card edits do not mutate the saved attributes');
+vienasControls('Nuorodos „Daugiau“ adresas')[0].props.onChange('https://example.org/audio');
+assert.equal(vienasUpdates.at(-1).cards[0].url, 'https://example.org/audio');
+const media = vienasNodes.filter(n => n.type === 'MediaUpload');
+assert.equal(media.length, 2, 'Each card picks its image from the Media Library');
+assert.deepEqual(plain(media[0].props.allowedTypes), ['image']);
+media[0].props.onSelect({ id: 42, url: 'https://example.org/x.jpg', alt: 'ignored' });
+assert.deepEqual(plain(vienasUpdates.at(-1).cards[0]), { ...vienasDefaults.cards[0], imageId: 42 }, 'Only the image ID is stored; alt comes from the media item');
+const buttonNodes = label => vienasNodes.filter(n => n.children && n.children.flat(Infinity).includes(label));
+buttonNodes('Pridėti kortelę')[0].props.onClick();
+assert.equal(vienasUpdates.at(-1).cards.length, 3, 'A third card can be added');
+buttonNodes('Pašalinti kortelę')[0].props.onClick();
+assert.deepEqual(plain(vienasUpdates.at(-1).cards.map(c => c.title)), ['Biblijinis išgelbėjimo planas'], 'A card can be removed');
+vienasNodes = vienasEditor({ ...vienasDefaults, cards: [vienasDefaults.cards[0], vienasDefaults.cards[1], vienasDefaults.cards[0]] });
+assert(buttonNodes('Pridėti kortelę')[0].props.disabled, 'No more than three cards');
+vienasNodes = vienasEditor({ ...vienasDefaults, cards: [vienasDefaults.cards[0]] });
+assert(buttonNodes('Pašalinti kortelę')[0].props.disabled, 'At least one card stays');
+vienasNodes = vienasEditor({ ...vienasDefaults, showCta: false });
+assert.equal(vienasControls('Mygtuko tekstas').length, 0, 'Call-to-action fields are hidden while it is off');
+assert(vienasNodes.some(n => n.props?.block === vienas.name && n.props.httpMethod === 'POST'), 'Vienas balsas server preview');
+// Review finding 3: an empty saved list shows the default cards in the editor and saves a valid list on the next edit.
+const updatesBefore = vienasUpdates.length;
+vienasNodes = vienasEditor({ ...vienasDefaults, cards: [] });
+assert.equal(vienasUpdates.length, updatesBefore, 'Opening a block with no cards does not change it');
+assert.equal(vienasNodes.filter(n => n.type === 'MediaUpload').length, 2, 'An empty list shows the two default cards');
+assert(buttonNodes('Pašalinti kortelę').every(b => !b.props.disabled), 'Default cards can be removed down to one');
+vienasControls('Pavadinimas')[0].props.onChange('Pirma');
+assert.deepEqual(plain(vienasUpdates.at(-1).cards.map(c => c.title)), ['Pirma', 'Biblijinis išgelbėjimo planas'], 'Editing an empty list saves the default cards with the change');
+vienasNodes = vienasEditor({ ...vienasDefaults, cards: undefined });
+assert.equal(vienasNodes.filter(n => n.type === 'MediaUpload').length, 2, 'A missing list shows the default cards');
+const vienasCss = fs.readFileSync(path.join(root, 'dist/vienas-balsas.css'), 'utf8');
+assert(vienasCss.includes('.alps-vb') && !vienasCss.includes('$') && !/@import|url\(|fonts\.google|font-family/.test(vienasCss), 'Vienas balsas CSS is compiled, loads nothing and keeps the theme fonts');
+assert(vienasCss.includes('#2f557f') && vienasCss.includes('#27306e') && vienasCss.includes(':focus-visible'), 'Denim, campaign navy and visible focus');
+assert(/max-width:\s?600px/.test(vienasCss) && /max-width:\s?1024px/.test(vienasCss), 'Tablet and phone layouts');
+// Re-review: entries that are not cards (null, strings, arrays, {}) never crash the editor and show
+// the default cards, as PHP renders them; a mixed list keeps only the real cards.
+for (const broken of [[null], ['broken'], [[]], [{}], [null, 'broken', 5, false]]) {
+  const before = vienasUpdates.length;
+  vienasNodes = vienasEditor({ ...vienasDefaults, cards: broken });
+  assert.equal(vienasUpdates.length, before, `Opening cards ${JSON.stringify(broken)} changes nothing`);
+  assert.equal(vienasNodes.filter(n => n.type === 'MediaUpload').length, 2, `Cards ${JSON.stringify(broken)} show the two default cards`);
+  assert.equal(vienasControls('Pavadinimas')[0].props.value, 'Marijos sūnaus gyvenimas', `Cards ${JSON.stringify(broken)} show default texts, not a blank card`);
+}
+vienasNodes = vienasEditor({ ...vienasDefaults, cards: [null, 'broken', { title: 'Tikra', url: '/x/' }] });
+assert.equal(vienasNodes.filter(n => n.type === 'MediaUpload').length, 1, 'A mixed list shows only its real card');
+vienasControls('Pavadinimas')[0].props.onChange('Pakeista');
+assert.deepEqual(plain(vienasUpdates.at(-1).cards), [{ title: 'Pakeista', url: '/x/' }], 'The next edit saves the cleaned list');
+// Review finding 1: the phone rule must come after the container queries (same specificity,
+// so the later rule wins); otherwise a 461–600 px panel on a phone gets two columns.
+const phoneRule = vienasCss.search(/@media ?\(max-width: ?600px\)/);
+const containerRules = [...vienasCss.matchAll(/@container alps-vb ?\(max-width: ?\d+px\)/g)].map(m => m.index);
+assert(phoneRule > 0 && containerRules.length === 2 && containerRules.every(i => i < phoneRule), 'The phone layout comes after both container queries, so phones always stack');
+assert(/@media ?\(max-width: ?600px\)\{[^@]*\.alps-vb__grid\{grid-template-columns:minmax\(0, ?1fr\)/.test(vienasCss), 'The phone rule sets one column');
+for (const p of ['src/vienas-balsas/block.json', 'src/vienas-balsas/class-vienas-balsas-block.php', 'dist/vienas-balsas.css']) {
+  assert(fs.existsSync(path.join(root, 'build/alps-gutenberg-blocks', p)), 'Packaged ' + p);
+}
+// Identity: the YouTube and podcast blocks use Denim, not Tailwind blue.
+for (const file of ['dist/youtube-channel.css', 'dist/podcast-season.css']) {
+  const text = fs.readFileSync(path.join(root, file), 'utf8');
+  assert(!/#1e3a8a|30,\s*58,\s*138/i.test(text) && text.includes('#2f557f'), file + ' uses Denim');
+}
+console.log(`PASS: Vienas balsas editor controls, CSS (${vienasCss.length} B) and packaged assets; Denim in YouTube and podcast styles.`);

@@ -8,12 +8,12 @@
 .alps-pod {
 	--alps-pod-accent: #d4af37;
 	--alps-pod-accent-deep: #8a6508; // 5.3:1 on white (WCAG AA)
-	--alps-pod-primary: #1e3a8a;
+	--alps-pod-primary: #2f557f;
 	--alps-pod-surface: #fff;
 	--alps-pod-card: #f5f7fb;
 	--alps-pod-card-hover: #ebf0f8;
 	--alps-pod-muted: #556274; // 5.8:1 on the card colour
-	--alps-pod-border: rgba(30, 58, 138, 0.12);
+	--alps-pod-border: rgba(47, 85, 127, 0.12);
 
 	box-sizing: border-box;
 	max-width: 1000px;
@@ -22,7 +22,7 @@
 	border-radius: 24px;
 	background: var(--alps-pod-surface);
 	color: var(--alps-pod-primary);
-	box-shadow: 0 0 0 1px var(--alps-pod-border), 0 25px 50px -12px rgba(30, 58, 138, 0.15);
+	box-shadow: 0 0 0 1px var(--alps-pod-border), 0 25px 50px -12px rgba(47, 85, 127, 0.15);
 
 	*,
 	*::before,
@@ -256,7 +256,7 @@
 	padding: 12px 16px;
 	border-left: 4px solid #d4af37;
 	background: #fdf8e7;
-	color: #1e3a8a;
+	color: #2f557f;
 }
 
 @media (max-width: 640px) {

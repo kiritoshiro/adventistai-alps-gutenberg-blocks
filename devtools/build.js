@@ -45,6 +45,9 @@ const packageFiles = [
   'src/podcast-season/class-podcast-season-block.php',
   'dist/podcast-season.js',
   'dist/podcast-season.css',
+  'src/vienas-balsas/block.json',
+  'src/vienas-balsas/class-vienas-balsas-block.php',
+  'dist/vienas-balsas.css',
 ];
 const editorStyles = ['src/latest-posts/editor.scss', 'src/youtube-channel/editor.scss'];
 
@@ -69,6 +72,7 @@ async function buildAssets() {
     }}],
   });
   fs.writeFileSync(path.join(root, 'dist/book-showcase.css'), sass.compile(path.join(root, 'src/book-showcase/style.scss'), { style: 'compressed' }).css);
+  fs.writeFileSync(path.join(root, 'dist/vienas-balsas.css'), sass.compile(path.join(root, 'src/vienas-balsas/style.scss'), { style: 'compressed' }).css);
   fs.writeFileSync(path.join(root, 'dist/external-posts.css'), sass.compile(path.join(root, 'src/external-posts/style.scss'), { style: 'compressed' }).css);
   const css = editorStyles.map(file => sass.compile(path.join(root, file), { style: 'compressed' }).css);
   fs.writeFileSync(path.join(root, 'dist/blocks.editor.build.css'), css.join('\n'));

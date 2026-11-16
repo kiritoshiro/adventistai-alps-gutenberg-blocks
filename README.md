@@ -12,6 +12,7 @@ for the ALPS theme on adventistai.lt. It provides these blocks:
 - **Book Showcase** (`alps-gutenberg-blocks/book-showcase`), the PDF book cover grid with editable settings. See [Book Showcase](#book-showcase).
 - **Newspaper Posts** (`alps-gutenberg-blocks/newspaper-posts`), newest posts with medium thumbnails, optional dates and cleaned excerpts. See [Newspaper Posts](#newspaper-posts).
 - **Podcast Season** (`alps-gutenberg-blocks/podcast-season`), one season of a podcast from its RSS feed: an audio player and the episode list. See [Podcast Season](#podcast-season).
+- **Vienas balsas** (`alps-gutenberg-blocks/vienas-balsas`), the "Vienas balsas 2027" campaign panel: a heading with a link, one to three project cards and a call-to-action card. See [Vienas balsas](#vienas-balsas).
 
 All are rendered in PHP. The editor script and stylesheet, and the front-end files of the blocks that have them, are built into `dist/`.
 
@@ -30,6 +31,7 @@ the editor can no longer edit it as those blocks. See `CHANGELOG.md`.
 | `src/latest-posts/edit.js`, `editor.scss` | Block editor UI |
 | `src/podcast-season/` | Podcast Season: `block.json`, feed parsing, cache and render (`class-podcast-season-block.php`), editor (`edit.js`), front end (`view.js`, `style.scss`) |
 | `src/youtube-channel/` | YouTube Channel Videos: `block.json`, server render and API cache (`class-youtube-channel-block.php`), editor (`edit.js`), front end (`view.js`, `style.scss`) |
+| `src/vienas-balsas/` | Vienas balsas: `block.json`, render and URL checks (`class-vienas-balsas-block.php`), editor (`edit.js`), front end (`style.scss`) |
 | `src/index.js` | Editor entry that registers all blocks |
 | `languages/` | Lithuanian strings for the server-rendered texts (`.l10n.php`, WordPress 6.5+) |
 | `devtools/build.js` | Builds `dist/`, and with `--package` the release folder |
@@ -48,6 +50,9 @@ php tests/render-newspaper-posts.php
 php tests/render-latest-posts.php
 php tests/render-youtube-channel.php
 php tests/render-book-showcase.php
+php tests/render-external-posts.php
+php tests/render-podcast-season.php
+php tests/render-vienas-balsas.php
 ```
 
 To try it locally, run `npm run package` and copy or link `build/alps-gutenberg-blocks` into `wp-content/plugins`.
@@ -130,3 +135,13 @@ Loading:
 - The season list is cached in a non-autoloaded option (`alps_gb_pod_*`, ~1 KB per episode at most) and refreshed by WP-Cron after an hour while the stale list is served. Only the first render of a feed and season fetches it (`wp_safe_remote_get`, 10 s, 10 MB cap); a failure is remembered for 10 minutes and an existing list is kept.
 - The cover (the season's first episode artwork, else the podcast's) is never loaded from the feed host. WP-Cron saves a 240 px square copy in `uploads/alps-podcast/` as AVIF, WebP or JPEG (whatever the server's image editor writes); until then the block shows no cover. A cover that cannot be saved (missing, over 8 MB, no image editor) is tried again after a day, not on every view. Saving a cover removes copies older than 90 days; a page still showing one makes it again.
 - The stylesheet (4 KB) and script load only where the block renders. Problems are shown to editors only.
+
+## Vienas balsas
+
+Add **Vienas balsas** in the block inserter. It shows the "Vienas balsas 2027" panel of the v4 homepage: a light grey panel with a heading and a link at the right, project cards and a call-to-action card in the campaign navy.
+
+- **Settings (sidebar, in Lithuanian):** heading and its level (H2 by default; card titles are one level lower), the heading link's text and address, the "Daugiau" link text, and per card an image from the Media Library, eyebrow, title, text and "Daugiau" address. One to three cards can be added and removed; a saved list with no usable card shows the default cards, so the panel is never empty. Without a heading, card titles take the heading's level and the panel is a `<div>` instead of a `<section>`. The call-to-action card (eyebrow, title, text, button text and address) can be switched off.
+- **Defaults** are the mock-up's texts. Addresses start empty: a link or button without an address is not shown, so enter them before publishing. Addresses must be http(s) or site-relative (`/kaip-prisideti/`, `#forma`); anything else is dropped.
+- **Layout:** three columns on desktops; two on tablets (1024 px and narrower), where the call-to-action card goes below two project cards; one on phones (600 px and narrower). With three project cards the call-to-action card takes its own row on desktops. The same two steps also follow the panel's own width (720 and 460 px, CSS container queries), so it fits a narrow column or the editor's content width.
+- **Accessibility:** image alt text comes from the Media Library item; each "Daugiau" link also names its card for screen readers; focus is visible; text contrast is at least 6.9:1. Eyebrows and "Daugiau" are written in normal case and shown in capitals by CSS, so screen readers read words, not letters.
+- **Loading:** a 4 KB stylesheet, only where the block renders, no front-end JavaScript and no fonts (the theme's are used).

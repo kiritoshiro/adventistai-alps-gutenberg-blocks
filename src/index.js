@@ -9,3 +9,4 @@ import './newspaper-posts';
 
 import './external-posts';
 import './podcast-season';
+import './vienas-balsas';

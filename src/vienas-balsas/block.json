@@ -1,0 +1,35 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "alps-gutenberg-blocks/vienas-balsas",
+  "title": "Vienas balsas",
+  "category": "widgets",
+  "icon": "megaphone",
+  "description": "A campaign panel: a heading with a link, one to three project cards and a call-to-action card.",
+  "keywords": ["vienas balsas", "projektai", "prisidėti", "kampanija"],
+  "textdomain": "alps-gutenberg-blocks",
+  "supports": { "html": false, "align": ["wide", "full"] },
+  "attributes": {
+    "heading": { "type": "string", "default": "Vienas balsas 2027" },
+    "headingLevel": { "type": "number", "default": 2 },
+    "linkText": { "type": "string", "default": "Kaip prisidėti" },
+    "linkUrl": { "type": "string", "default": "" },
+    "moreText": { "type": "string", "default": "Daugiau" },
+    "cards": {
+      "type": "array",
+      "items": { "type": "object" },
+      "default": [
+        { "imageId": 0, "eyebrow": "Audio santraukos", "title": "Marijos sūnaus gyvenimas", "text": "Klausykite trumpų knygos skyrių santraukų.", "url": "" },
+        { "imageId": 0, "eyebrow": "Schema", "title": "Biblijinis išgelbėjimo planas", "text": "Išgelbėjimo istorija nuo Pradžios iki Apreiškimo vienoje schemoje.", "url": "" }
+      ]
+    },
+    "showCta": { "type": "boolean", "default": true },
+    "ctaEyebrow": { "type": "string", "default": "Prisidėkite" },
+    "ctaTitle": { "type": "string", "default": "Įgarsinkite santrauką" },
+    "ctaText": { "type": "string", "default": "Užsiregistruokite ir įgarsinkite vieno „Marijos sūnaus gyvenimas“ skyriaus santrauką." },
+    "ctaButtonText": { "type": "string", "default": "Registruotis" },
+    "ctaUrl": { "type": "string", "default": "" }
+  },
+  "editorScript": "alps-gb",
+  "editorStyle": ["alps-gb-editor", "alps-gb-vienas-balsas"]
+}

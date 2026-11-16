@@ -16,6 +16,7 @@ require_once __DIR__ . '/youtube-channel/class-youtube-channel-block.php';
 require_once __DIR__ . '/book-showcase/class-book-showcase-block.php';
 require_once __DIR__ . '/external-posts/class-external-posts-block.php';
 require_once __DIR__ . '/podcast-season/class-podcast-season-block.php';
+require_once __DIR__ . '/vienas-balsas/class-vienas-balsas-block.php';
 
 function alps_gutenberg_blocks_init()
 {
@@ -48,5 +49,6 @@ function alps_gutenberg_blocks_init()
     (new \ALPS\Gutenberg\Blocks\BookShowcaseBlock())->init();
     (new \ALPS\Gutenberg\Blocks\ExternalPostsBlock())->init();
     (new \ALPS\Gutenberg\Blocks\PodcastSeasonBlock())->init();
+    (new \ALPS\Gutenberg\Blocks\VienasBalsasBlock())->init();
 }
 add_action('init', 'alps_gutenberg_blocks_init');
