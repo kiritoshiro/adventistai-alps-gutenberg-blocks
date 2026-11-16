@@ -11,10 +11,13 @@
   "watch": [
     "/wordpress/wp-content/plugins/alps-gutenberg-blocks/"
   ],
-  "fixture": "<!-- wp:alps-gutenberg-blocks/latest-posts {\"title\":\"Naujienos\",\"linkLabel\":\"Visos\",\"linkUrl\":\"https://example.org/\"} /-->\n<!-- wp:alps-gutenberg-blocks/newspaper-posts /-->",
+  "fixture": "<!-- wp:alps-gutenberg-blocks/latest-posts {\"title\":\"Naujienos\",\"linkLabel\":\"Visos\",\"linkUrl\":\"https://example.org/\"} /-->\n<!-- wp:alps-gutenberg-blocks/newspaper-posts /-->\n<!-- wp:alps-gutenberg-blocks/vienas-balsas {\"linkUrl\":\"/kaip-prisideti/\",\"ctaUrl\":\"https://example.org/\"} /-->",
   "expect": [
     "c-section__blocks",
     "Hello world!",
-    "alps-newspaper-posts"
+    "alps-newspaper-posts",
+    "<h2 class=\"alps-vb__heading\">Vienas balsas 2027</h2>",
+    "alps-vb__button",
+    "dist/vienas-balsas.css"
   ]
 }

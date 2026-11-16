@@ -3,6 +3,15 @@ A record of the changes made to `ALPS Gutenberg Blocks`.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.6.0]
+
+### Added
+- Vienas balsas block (`alps-gutenberg-blocks/vienas-balsas`): the "Vienas balsas 2027" panel of the adventistai.lt v4 homepage mock-up. A light grey panel with a heading (h2 by default, H2–H4 in the editor) and a "Kaip prisidėti →" link, one to three project cards (Media Library image at 16:9, eyebrow, title, text and a "Daugiau →" link) and a call-to-action card in the campaign navy `#27306E` with a white button, which can be switched off. Defaults are the mock-up's texts; addresses start empty, and a link or button without an address is not shown. Every text, link and image is edited in the sidebar (labels in Lithuanian); cards can be added and removed in the sidebar (at least one always shows: an empty list falls back to the default cards). Without a heading, card titles take the heading's level and the panel is a `<div>`, not an unnamed `<section>`.
+- Three columns on desktops, two on tablets (with two project cards the call-to-action card goes below them), one on phones (600 px and narrower); the same steps apply when the panel itself is narrower than 720 or 460 px (a narrow column, the editor's content width). Fonts come from the theme. Image alt text comes from the Media Library item. Each "Daugiau" link includes its card title for screen readers ("Daugiau: Marijos sūnaus gyvenimas"); arrows are hidden from them. Focus is visible (a Denim ring on the panel, a white ring on the navy card) and text contrast is at least 6.9:1. Everything is escaped on the server and links accept only http(s) and relative addresses. The 4 KB stylesheet loads only where the block renders; there is no front-end JavaScript.
+
+### Changed
+- YouTube Channel Videos and Podcast Season: Denim `#2F557F` (the adventistai.lt logo colour) instead of Tailwind blue `#1E3A8A` for titles, profile buttons, arrows, counter, play buttons, duration badges, borders, shadows, hover and focus states, and the podcast's editor notice. Denim has 7.7:1 contrast on white (7.2:1 on the card background).
+
 ## [3.5.3]
 
 ### Security

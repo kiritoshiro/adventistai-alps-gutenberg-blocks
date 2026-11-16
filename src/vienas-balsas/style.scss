@@ -1,0 +1,294 @@
+// "Vienas balsas" campaign panel, front end and editor preview. Colours are
+// custom properties so a theme can restyle the block; fonts come from the theme.
+//
+// Selectors repeat .alps-vb where the ALPS theme would otherwise win: it draws
+// !important underlines on links in `.text` and styles content headings.
+// Contrast (WCAG AA or better): Denim on white 7.7:1, muted text on white
+// 6.9:1, white on navy 12.1:1, the light navy-card text on navy 7:1 or more.
+
+.alps-vb {
+	--alps-vb-denim: #2f557f;
+	--alps-vb-navy: #27306e;
+	--alps-vb-ink: #04132b;
+	--alps-vb-muted: #4f5a6b;
+	--alps-vb-panel: #edeff3;
+	--alps-vb-card: #fff;
+	--alps-vb-border: #dee4ec;
+	--alps-vb-on-navy: #dfe3f2;
+	--alps-vb-on-navy-soft: #c5cae6;
+
+	container: alps-vb / inline-size;
+	box-sizing: border-box;
+	margin: 2rem 0;
+	padding: 32px;
+	border-radius: 16px;
+	background: var(--alps-vb-panel);
+	color: var(--alps-vb-ink);
+
+	*,
+	*::before,
+	*::after {
+		box-sizing: border-box;
+	}
+}
+
+// Links: no theme underline or border; an underline on hover only.
+.alps-vb.alps-vb a,
+.alps-vb.alps-vb a:visited {
+	border: 0 none !important;
+	box-shadow: none !important;
+	text-decoration: none !important;
+}
+
+.alps-vb.alps-vb a:focus-visible {
+	outline: 3px solid var(--alps-vb-denim);
+	outline-offset: 3px;
+	border-radius: 2px;
+}
+
+.alps-vb__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px 24px;
+	margin-bottom: 24px;
+}
+
+.alps-vb.alps-vb .alps-vb__heading {
+	margin: 0;
+	padding: 0;
+	color: var(--alps-vb-ink);
+	font-size: 1.75rem;
+	font-weight: 600;
+	line-height: 1.25;
+	letter-spacing: -0.01em;
+	text-transform: none;
+}
+
+.alps-vb.alps-vb a.alps-vb__head-link {
+	color: var(--alps-vb-denim);
+	font-size: 0.9375rem;
+	font-weight: 600;
+	line-height: 1.4;
+
+	&:hover {
+		text-decoration: underline !important;
+		text-underline-offset: 3px;
+	}
+}
+
+.alps-vb__arrow {
+	margin-left: 0.3em;
+}
+
+.alps-vb__grid {
+	display: grid;
+	grid-template-columns: repeat(var(--alps-vb-cols, 3), minmax(0, 1fr));
+	gap: 26px;
+}
+
+.alps-vb__card,
+.alps-vb__cta {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	overflow: hidden;
+	border-radius: 8px;
+}
+
+.alps-vb__card {
+	border: 1px solid var(--alps-vb-border);
+	background: var(--alps-vb-card);
+}
+
+.alps-vb__media {
+	aspect-ratio: 16 / 9;
+	overflow: hidden;
+	background: var(--alps-vb-border);
+
+	img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		max-width: none;
+		margin: 0;
+		object-fit: cover;
+	}
+}
+
+.alps-vb__body {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	padding: 20px 18px 18px;
+}
+
+.alps-vb.alps-vb .alps-vb__eyebrow {
+	margin: 0 0 8px;
+	color: var(--alps-vb-denim);
+	font-size: 0.75rem;
+	font-weight: 700;
+	line-height: 1.4;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.alps-vb.alps-vb .alps-vb__title {
+	margin: 0 0 8px;
+	padding: 0;
+	color: var(--alps-vb-ink);
+	font-size: 1.25rem;
+	font-weight: 600;
+	line-height: 1.3;
+	text-transform: none;
+	overflow-wrap: anywhere;
+}
+
+.alps-vb.alps-vb .alps-vb__text {
+	margin: 0 0 16px;
+	color: var(--alps-vb-muted);
+	font-size: 0.9375rem;
+	font-weight: 400;
+	line-height: 1.5;
+}
+
+.alps-vb.alps-vb a.alps-vb__more {
+	align-self: flex-start;
+	margin-top: auto;
+	color: var(--alps-vb-ink);
+	font-size: 0.8125rem;
+	font-weight: 700;
+	line-height: 1.4;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+
+	&:hover {
+		color: var(--alps-vb-denim);
+		text-decoration: underline !important;
+		text-underline-offset: 3px;
+	}
+}
+
+// Call-to-action card on the campaign navy.
+.alps-vb__cta {
+	padding: 24px;
+	background: var(--alps-vb-navy);
+	color: #fff;
+
+	.alps-vb.alps-vb & .alps-vb__eyebrow {
+		color: var(--alps-vb-on-navy-soft);
+	}
+
+	.alps-vb.alps-vb & .alps-vb__title {
+		color: #fff;
+		font-size: 1.375rem;
+	}
+
+	.alps-vb.alps-vb & .alps-vb__text {
+		margin-bottom: 24px;
+		color: var(--alps-vb-on-navy);
+	}
+}
+
+.alps-vb.alps-vb a.alps-vb__button {
+	display: inline-block;
+	align-self: flex-start;
+	max-width: 100%;
+	margin-top: auto;
+	padding: 12px 36px;
+	border-radius: 4px;
+	background: #fff;
+	color: var(--alps-vb-navy);
+	font-size: 0.9375rem;
+	font-weight: 600;
+	line-height: 1.3;
+	text-align: center;
+
+	&:hover {
+		background: var(--alps-vb-on-navy);
+	}
+
+	// White ring outside the white button, visible on the navy card.
+	&:focus-visible {
+		outline: 3px solid #fff;
+		outline-offset: 3px;
+	}
+}
+
+// Read by screen readers only (the card title after "Daugiau").
+.alps-vb__sr {
+	position: absolute !important;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+// Three project cards: the call-to-action card gets its own row.
+.alps-vb--cards-3 .alps-vb__cta {
+	grid-column: 1 / -1;
+}
+
+// Two columns; with two project cards the call-to-action card goes below them.
+@mixin two-columns {
+	.alps-vb__grid {
+		grid-template-columns: repeat(var(--alps-vb-tablet-cols, 2), minmax(0, 1fr));
+	}
+
+	.alps-vb--cards-3 .alps-vb__cta {
+		grid-column: auto;
+	}
+
+	.alps-vb--cards-2 .alps-vb__cta {
+		grid-column: 1 / -1;
+	}
+}
+
+@mixin one-column {
+	.alps-vb__grid {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 16px;
+	}
+}
+
+// Tablets: two columns.
+@media (max-width: 1024px) {
+	@include two-columns;
+}
+
+// The same steps when the block sits in a narrow column on a wide screen
+// (a sidebar layout, the editor's content width): the panel's own width.
+@container alps-vb (max-width: 720px) {
+	@include two-columns;
+}
+
+@container alps-vb (max-width: 460px) {
+	@include one-column;
+}
+
+// Phones: one column. Keep this after the container queries: the rules have
+// the same specificity, so the last one wins, and a phone must always stack
+// (a 461–600 px panel would otherwise get two columns from the 720 px query).
+@media (max-width: 600px) {
+	.alps-vb {
+		padding: 20px;
+		border-radius: 12px;
+	}
+
+	@include one-column;
+
+	.alps-vb.alps-vb .alps-vb__heading {
+		font-size: 1.5rem;
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.alps-vb.alps-vb a.alps-vb__button {
+		transition: background-color 0.2s ease;
+	}
+}
